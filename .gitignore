@@ -11,6 +11,7 @@ data/articles.json
 data/news.db
 data/news.db-journal
 data/news.db-wal
+data/news.db-shm
 
 # Env / secrets
 .env

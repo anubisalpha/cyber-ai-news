@@ -2,8 +2,9 @@ services:
   news:
     build: .
     image: cyber-ai-news:latest
-    ports:
-      - "8000:8000"
+    # Not published directly — only the caddy proxy can reach it (basic auth).
+    expose:
+      - "8000"
     # SMTP_* / GOOGLE_API_KEY / MAIL_TO for email + LLM (see .env.example).
     # Missing file is fine — the web service runs without it.
     env_file:
@@ -28,5 +29,27 @@ services:
     pids_limit: 256
     restart: unless-stopped
 
+  # Reverse proxy + HTTP basic auth (and automatic HTTPS for a real domain).
+  caddy:
+    image: caddy:2-alpine
+    depends_on:
+      - news
+    ports:
+      # Plain HTTP on 8080 by default. For HTTPS with a domain, also publish
+      # "80:80" and "443:443" and set SITE_ADDRESS to your hostname in .env.
+      - "8080:8080"
+    env_file:
+      - path: .env
+        required: false
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy-data:/data      # persisted TLS certs
+      - caddy-config:/config
+    security_opt:
+      - no-new-privileges:true
+    restart: unless-stopped
+
 volumes:
   news-data:
+  caddy-data:
+  caddy-config:

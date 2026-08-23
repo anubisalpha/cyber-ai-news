@@ -44,25 +44,60 @@ apt update && apt install -y docker-ce docker-ce-cli containerd.io docker-compos
 
 ## 3. Deploy the app (inside the LXC)
 
+The stack runs the app **behind a Caddy reverse proxy that enforces HTTP basic
+auth** — the app itself is never published directly. So the first step is setting
+up credentials.
+
 ```bash
 git clone https://github.com/anubisalpha/cyber-ai-news.git
 cd cyber-ai-news
 
-cp .env.example .env          # then edit — see Security below
+cp .env.example .env
 chmod 600 .env                # secrets: owner-only
-
-docker compose up -d          # builds the image and starts the container
-docker compose logs -f news   # watch it boot
 ```
 
-Then populate the database and open the dashboard:
+Set a username and password hash in `.env`. Generate the hash with this one-liner
+(it also doubles every `$` to `$$`, which docker compose requires):
 
 ```bash
-# first fetch (or wait for the scheduler if you enabled it)
-curl -X POST http://localhost:8000/api/refresh
+docker run --rm caddy caddy hash-password --plaintext 'choose-a-password' | sed 's/\$/\$\$/g'
 ```
 
-Dashboard: `http://<lxc-ip>:8000/`
+Put the output in `.env`:
+
+```ini
+BASIC_AUTH_USER=admin
+BASIC_AUTH_HASH=$$2a$$14$$...the-escaped-hash...
+SITE_ADDRESS=http://:8080
+```
+
+Then start it:
+
+```bash
+docker compose up -d          # builds the app image + starts app and caddy
+docker compose logs -f        # watch both boot
+```
+
+Open the dashboard at `http://<lxc-ip>:8080/` and log in with your credentials.
+Populate the database with a first fetch (the browser will have your session; from
+the shell, pass the creds):
+
+```bash
+curl -u admin:choose-a-password -X POST http://localhost:8080/api/refresh
+```
+
+### Enabling HTTPS (optional)
+Point a DNS name at the LXC, then in `.env` set `SITE_ADDRESS=news.example.com`
+and publish 80/443 by adding to the `caddy` service in `compose.yml`:
+
+```yaml
+    ports:
+      - "80:80"
+      - "443:443"
+      - "8080:8080"
+```
+
+Caddy will obtain and renew a Let's Encrypt certificate automatically.
 
 ## 4. Turn on automation (optional)
 
@@ -103,15 +138,19 @@ docker run --rm -v cyber-ai-news_news-data:/data -v "$PWD":/backup alpine \
 
 Read this before exposing the service anywhere beyond your own machine.
 
-### The service has NO built-in authentication
-The API and dashboard are unauthenticated, and **`POST /api/refresh` can be
-triggered by anyone who can reach it** (a mild resource-abuse / DoS vector).
+### Authentication (built into the stack)
+The compose stack puts the app **behind a Caddy reverse proxy that enforces HTTP
+basic auth** — the app is never published directly (it's `expose`-only on the
+internal network). So `POST /api/refresh` and everything else require credentials.
 
-- **Do not expose port 8000 to the public internet.** Keep it on your LAN/VPN,
-  or put it behind a reverse proxy (Caddy/Nginx/Traefik) that adds **TLS + auth**
-  (basic auth, an SSO forward-auth, or an allow-list).
-- If you only ever use it locally, bind the published port to localhost in
-  `compose.yml` (`"127.0.0.1:8000:8000"`).
+- **Set a strong password.** Basic auth is only as good as the password; the hash
+  is bcrypt (cost 14). Never commit `.env`.
+- **Add TLS before using it over any untrusted network.** Basic auth sends
+  credentials base64-encoded, not encrypted — on plain HTTP they're exposed in
+  transit. Enable HTTPS (set `SITE_ADDRESS` to a domain, see §3) or keep it on a
+  LAN/VPN. Prefer not to expose it to the public internet at all.
+- The app has no auth of its own — the proxy is the gate. If you front it with a
+  different proxy, keep an equivalent auth layer, and don't also publish port 8000.
 
 ### Secrets (`.env`)
 - `.env` holds `SMTP_PASS` and optionally `GOOGLE_API_KEY`. Keep it `chmod 600`,

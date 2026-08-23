@@ -1,0 +1,23 @@
+# Caddy reverse proxy + HTTP basic auth in front of the news app.
+#
+# Config comes from env vars (set them in .env):
+#   SITE_ADDRESS      what Caddy listens on. Default "http://:8080" (plain HTTP).
+#                     Set to a domain (e.g. "news.example.com") for automatic HTTPS
+#                     — that needs ports 80+443 published and public DNS.
+#   BASIC_AUTH_USER   username (default "admin")
+#   BASIC_AUTH_HASH   bcrypt hash of the password. Generate with:
+#                       docker run --rm caddy caddy hash-password --plaintext 'yourpass'
+#
+# The app itself is not published — it's only reachable through this proxy.
+
+{
+	admin off
+}
+
+{$SITE_ADDRESS:http://:8080} {
+	basic_auth {
+		{$BASIC_AUTH_USER:admin} {$BASIC_AUTH_HASH}
+	}
+	encode gzip
+	reverse_proxy news:8000
+}

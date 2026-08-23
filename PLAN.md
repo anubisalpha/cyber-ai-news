@@ -67,6 +67,11 @@ Status legend: ⬜ todo · 🔄 in progress · ✅ done
   local claude-mail fallback; `digest`/`alerts` no longer depend on a sibling project.
 - ✅ `compose.yml` hardened (read-only rootfs, `no-new-privileges`, `cap_drop: ALL`,
   mem/pids limits, config bind-mount, `.env` env_file); `.env.example`.
+- ✅ **Reverse proxy + basic auth** — `Caddyfile` + a `caddy` service in compose front
+  the app (now `expose`-only, never published directly). Basic auth via `BASIC_AUTH_*`
+  env; automatic HTTPS when `SITE_ADDRESS` is a domain. Verified: 401 without creds,
+  200 with; app unreachable directly. (Gotcha: bcrypt `$` must be doubled to `$$` in
+  `.env` — the .env.example one-liner does it.)
 - ✅ `DEPLOY.md` — Proxmox unprivileged-LXC + Docker guide **with a security section**.
 - ✅ Security fix: dashboard now sanitises feed link URLs (blocks `javascript:`/`data:`
   href XSS); feed text already escaped; SQL parameterised.

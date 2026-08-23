@@ -27,7 +27,7 @@ fetch (RSS + JSON APIs) -> classify (keyword rules + optional LLM fallback)
 | `config/watchlists.yaml` | Named saved filters (watchlists) |
 | `web/index.html` | Single-file web dashboard (Overview + Browse), served by the API |
 | `tests/` | Tests: classify, dedupe, storage, llm, api, phase2, phase3 (38) |
-| `Dockerfile`, `compose.yml` | Container packaging |
+| `Dockerfile`, `compose.yml`, `Caddyfile` | Container packaging + reverse proxy (basic auth) |
 | `data/news.db` | SQLite history of fetched+tagged articles (git-ignored) |
 | `PLAN.md` | Enhancement roadmap + status |
 
@@ -179,11 +179,19 @@ whole backlog. `channel: email` sends real email via claude-mail, so opt in deli
 
 ## Running with Docker
 
+The stack runs the app **behind a Caddy reverse proxy with HTTP basic auth** — the
+app is internal-only. Set credentials in `.env` first (see `.env.example`; the hash
+one-liner is `docker run --rm caddy caddy hash-password --plaintext 'pw' | sed 's/\$/\$\$/g'`).
+
 ```bash
-docker compose up -d          # build + run on http://localhost:8000
-docker compose logs -f news   # follow logs
+cp .env.example .env          # set BASIC_AUTH_USER / BASIC_AUTH_HASH
+docker compose up -d          # build + run: app + caddy on http://localhost:8080
+docker compose logs -f        # follow logs
 docker compose down           # stop (SQLite history persists in the named volume)
 ```
+
+Open `http://localhost:8080/` and log in. Caddy can also do automatic HTTPS for a
+real domain — see [DEPLOY.md](DEPLOY.md).
 
 The image installs only the core requirements (~237MB) and `compose.yml` ships with
 container hardening (non-root, read-only rootfs, dropped capabilities, resource limits).
@@ -191,9 +199,9 @@ Email is self-contained in the container via `SMTP_*` env vars (see `.env.exampl
 set `MAIL_TO` and it sends digests/alerts directly — no dependency on other projects.
 
 **Deploying to a server (Proxmox LXC + Docker):** see **[DEPLOY.md](DEPLOY.md)**, which
-includes step-by-step setup and a **security guidance** section. Key point: the API has
-**no built-in auth** (and `POST /api/refresh` is open) — don't expose it to the public
-internet; keep it on your LAN/VPN or behind a reverse proxy with TLS + auth.
+includes step-by-step setup and a **security guidance** section. The stack ships with a
+Caddy reverse proxy enforcing basic auth (app is internal-only); add TLS (set a domain in
+`SITE_ADDRESS`) before exposing it over any untrusted network.
 
 ## Classification (keywords + optional LLM fallback)
 
