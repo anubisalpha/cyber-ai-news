@@ -7,6 +7,24 @@ taxonomy, and lets you query it.
 Everything you'll want to tune — sources, categories, keywords, filters — lives
 in **`config/`** as editable lists. No feed or category is hard-coded in the code.
 
+## Features
+
+- **Config-driven sources** — RSS feeds + JSON APIs (CISA KEV, NVD), each toggleable
+- **Filterable taxonomy** — cyber + AI categories, plus severity / region / content-type
+  and an AI×Cyber intersection bucket
+- **Classification** — fast keyword rules with an optional LLM fallback (Gemini) for the
+  fuzzy leftovers
+- **Near-duplicate clustering** — groups the same story across outlets
+- **SQLite history** — unlimited by default, with an optional retention trim
+- **Web dashboard** — an Overview summary page + a Browse/search page (bookmarks,
+  read-state, watchlist strip)
+- **REST API + RSS output** — filterable, paginated; per-watchlist feeds
+- **Watchlists & alerts** — named saved filters that can notify on new matches
+- **Email digests** — scheduled HTML summaries via SMTP
+- **Automation** — in-process scheduler (auto-refresh + daily digest) and source-health
+  monitoring
+- **Deploy-ready** — Docker + Caddy reverse proxy with basic auth; Proxmox LXC guide
+
 ## What it does
 
 ```

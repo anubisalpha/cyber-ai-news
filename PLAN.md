@@ -2,6 +2,10 @@
 
 Status legend: ⬜ todo · 🔄 in progress · ✅ done
 
+**Current status (2026-08-23):** Phases 1–3 complete + deployment (Docker, Caddy
+reverse proxy with basic auth, Proxmox LXC guide). Feature-complete and paused here.
+52 tests, ~66% coverage. Phase 4 ideas below remain open for a future pass.
+
 ## Audit findings (2026-08-23, at v0.2)
 
 - **~30% of articles uncategorized** (112 / 377). Keyword rules miss too much. → Phase 1.
