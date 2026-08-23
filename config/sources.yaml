@@ -104,21 +104,21 @@ sources:
   # ---------------------------------------------------------------------------
   - name: arXiv cs.AI (latest)
     type: rss
-    url: http://export.arxiv.org/rss/cs.AI
+    url: https://rss.arxiv.org/rss/cs.AI    # note: arXiv skips weekends (empty Sat/Sun)
     domain: ai
     enabled: true
     weight: 3
 
   - name: arXiv cs.LG (machine learning)
     type: rss
-    url: http://export.arxiv.org/rss/cs.LG
+    url: https://rss.arxiv.org/rss/cs.LG
     domain: ai
     enabled: true
     weight: 3
 
   - name: arXiv cs.CR (crypto & security)
     type: rss
-    url: http://export.arxiv.org/rss/cs.CR
+    url: https://rss.arxiv.org/rss/cs.CR
     domain: both
     enabled: true
     weight: 3

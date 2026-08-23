@@ -80,7 +80,10 @@ class NewsService:
                 kept.append(a)
                 continue
             try:
-                if datetime.fromisoformat(a.published) >= cutoff:
+                dt = datetime.fromisoformat(a.published)
+                if dt.tzinfo is None:  # some feeds (e.g. NVD) omit tz -> assume UTC
+                    dt = dt.replace(tzinfo=timezone.utc)
+                if dt >= cutoff:
                     kept.append(a)
             except ValueError:
                 kept.append(a)
