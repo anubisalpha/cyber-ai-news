@@ -20,22 +20,65 @@
   * { box-sizing: border-box; }
   body { margin: 0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
          background: var(--bg); color: var(--text); }
-  header { display: flex; align-items: center; gap: 16px; padding: 14px 20px;
+  a { color: inherit; }
+  header { display: flex; align-items: center; gap: 16px; padding: 12px 20px;
            border-bottom: 1px solid var(--border); background: var(--panel);
-           position: sticky; top: 0; z-index: 10; }
-  header h1 { font-size: 18px; margin: 0; letter-spacing: .3px; }
+           position: sticky; top: 0; z-index: 10; flex-wrap: wrap; }
+  header h1 { font-size: 17px; margin: 0; letter-spacing: .3px; white-space: nowrap; }
   header h1 .dot { color: var(--accent); }
-  header .stats { color: var(--muted); font-size: 13px; margin-left: auto; }
+  nav { display: flex; gap: 4px; }
+  nav button { background: transparent; border: 1px solid transparent; color: var(--muted);
+               padding: 6px 14px; border-radius: 6px; font: inherit; cursor: pointer; }
+  nav button.active { background: var(--panel-2); color: var(--text); border-color: var(--border); }
+  header .stats { color: var(--muted); font-size: 13px; margin-left: auto; white-space: nowrap; }
   button { font: inherit; cursor: pointer; border-radius: 6px; border: 1px solid var(--border);
            background: var(--panel-2); color: var(--text); padding: 7px 12px; }
   button.primary { background: var(--accent); color: #fff; border-color: var(--accent); }
   button:disabled { opacity: .5; cursor: default; }
+
+  /* ---------- Overview ---------- */
+  .wrap { padding: 20px; max-width: 1200px; margin: 0 auto; }
+  .kpis { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; margin-bottom: 18px; }
+  @media (max-width: 760px) { .kpis { grid-template-columns: repeat(2, 1fr); } }
+  .kpi { background: var(--panel); border: 1px solid var(--border); border-radius: 10px; padding: 16px; cursor: pointer; }
+  .kpi:hover { border-color: var(--accent); }
+  .kpi .n { font-size: 30px; font-weight: 700; line-height: 1; }
+  .kpi .l { color: var(--muted); font-size: 12px; text-transform: uppercase; letter-spacing: .6px; margin-top: 8px; }
+  .kpi.crit .n { color: var(--crit); }
+  .kpi.inter .n { color: var(--ai); }
+  .grid { display: grid; grid-template-columns: 1.4fr 1fr; gap: 16px; }
+  @media (max-width: 900px) { .grid { grid-template-columns: 1fr; } }
+  .col { display: flex; flex-direction: column; gap: 16px; }
+  .card { background: var(--panel); border: 1px solid var(--border); border-radius: 10px; padding: 16px; }
+  .card h3 { margin: 0 0 12px; font-size: 13px; text-transform: uppercase; letter-spacing: .7px; color: var(--muted); }
+  .hl { display: block; padding: 9px 0; border-bottom: 1px solid var(--border); text-decoration: none; }
+  .hl:last-child { border-bottom: none; }
+  .hl .t { font-size: 14px; font-weight: 600; line-height: 1.35; }
+  .hl:hover .t { color: var(--accent); }
+  .hl .m { font-size: 11px; color: var(--muted); margin-top: 3px; display: flex; gap: 7px; flex-wrap: wrap; align-items: center; }
+  .bar { display: flex; align-items: center; gap: 8px; margin: 6px 0; font-size: 13px; cursor: pointer; }
+  .bar:hover .name { color: var(--accent); }
+  .bar .name { width: 130px; flex-shrink: 0; color: var(--muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .bar .track { flex: 1; height: 8px; background: var(--panel-2); border-radius: 4px; overflow: hidden; }
+  .bar .fill { height: 100%; background: var(--accent); border-radius: 4px; }
+  .bar .v { width: 34px; text-align: right; color: var(--muted); font-variant-numeric: tabular-nums; }
+  .sevbar { display: flex; height: 14px; border-radius: 7px; overflow: hidden; margin: 4px 0 12px; }
+  .sevbar span { display: block; }
+  .seglegend { display: flex; gap: 14px; flex-wrap: wrap; font-size: 12px; color: var(--muted); }
+  .seglegend b { color: var(--text); }
+  .badge { padding: 2px 8px; border-radius: 999px; font-size: 11px; font-weight: 600; }
+  .badge.dom-cyber { background: color-mix(in srgb, var(--cyber) 20%, transparent); color: var(--cyber); }
+  .badge.dom-ai { background: color-mix(in srgb, var(--ai) 20%, transparent); color: var(--ai); }
+  .badge.dom-both { background: color-mix(in srgb, var(--both) 20%, transparent); color: var(--both); }
+  .sev { font-weight: 700; text-transform: uppercase; font-size: 10px; letter-spacing: .5px; }
+  .sev.critical { color: var(--crit); } .sev.high { color: var(--high); }
+  .sev.medium { color: var(--med); } .sev.low { color: var(--low); }
+
+  /* ---------- Browse ---------- */
   .layout { display: grid; grid-template-columns: 260px 1fr; gap: 0; }
   @media (max-width: 820px) { .layout { grid-template-columns: 1fr; } aside { border-right: none !important; } }
-  aside { border-right: 1px solid var(--border); padding: 18px; min-height: calc(100vh - 56px);
-          background: var(--panel); }
-  aside h2 { font-size: 11px; text-transform: uppercase; letter-spacing: .8px; color: var(--muted);
-             margin: 18px 0 8px; }
+  aside { border-right: 1px solid var(--border); padding: 18px; background: var(--panel); }
+  aside h2 { font-size: 11px; text-transform: uppercase; letter-spacing: .8px; color: var(--muted); margin: 18px 0 8px; }
   aside h2:first-child { margin-top: 0; }
   .field { display: block; width: 100%; margin-bottom: 8px; }
   select, input[type=search] { width: 100%; padding: 8px 10px; border-radius: 6px;
@@ -47,205 +90,300 @@
   main { padding: 18px 20px; }
   .toolbar { display: flex; align-items: center; gap: 10px; margin-bottom: 14px; flex-wrap: wrap; }
   .toolbar .count { color: var(--muted); font-size: 13px; }
-  .card { background: var(--panel); border: 1px solid var(--border); border-radius: 10px;
-          padding: 14px 16px; margin-bottom: 10px; transition: border-color .15s; }
-  .card:hover { border-color: var(--accent); }
-  .card a.title { color: var(--text); text-decoration: none; font-weight: 600; font-size: 15px; line-height: 1.35; }
-  .card a.title:hover { color: var(--accent); }
-  .meta { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin-top: 8px;
-          font-size: 12px; color: var(--muted); }
-  .badge { padding: 2px 8px; border-radius: 999px; font-size: 11px; font-weight: 600; }
-  .badge.dom-cyber { background: color-mix(in srgb, var(--cyber) 20%, transparent); color: var(--cyber); }
-  .badge.dom-ai { background: color-mix(in srgb, var(--ai) 20%, transparent); color: var(--ai); }
-  .badge.dom-both { background: color-mix(in srgb, var(--both) 20%, transparent); color: var(--both); }
-  .sev { font-weight: 700; text-transform: uppercase; font-size: 10px; letter-spacing: .5px; }
-  .sev.critical { color: var(--crit); } .sev.high { color: var(--high); }
-  .sev.medium { color: var(--med); } .sev.low { color: var(--low); }
+  .acard { background: var(--panel); border: 1px solid var(--border); border-radius: 10px;
+          padding: 14px 16px; margin-bottom: 10px; }
+  .acard:hover { border-color: var(--accent); }
+  .acard a.title { color: var(--text); text-decoration: none; font-weight: 600; font-size: 15px; line-height: 1.35; }
+  .acard a.title:hover { color: var(--accent); }
+  .meta { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin-top: 8px; font-size: 12px; color: var(--muted); }
   .tags { margin-top: 8px; display: flex; flex-wrap: wrap; gap: 5px; }
   .tag { font-size: 11px; color: var(--muted); background: var(--panel-2);
          border: 1px solid var(--border); border-radius: 5px; padding: 2px 7px; cursor: pointer; }
   .tag:hover { color: var(--accent); border-color: var(--accent); }
   .summary { color: var(--muted); font-size: 13px; line-height: 1.5; margin-top: 8px; }
   .empty { color: var(--muted); text-align: center; padding: 60px 20px; }
+  .hidden { display: none !important; }
   .spin { display: inline-block; width: 13px; height: 13px; border: 2px solid var(--muted);
           border-top-color: transparent; border-radius: 50%; animation: s 0.7s linear infinite; vertical-align: -2px; }
   @keyframes s { to { transform: rotate(360deg); } }
+  #loadMore { display: block; margin: 8px auto 30px; }
 </style>
 </head>
 <body>
 <header>
   <h1><span class="dot">●</span> Cyber<span style="color:var(--muted)">+</span>AI News</h1>
+  <nav>
+    <button id="navOverview" class="active">Overview</button>
+    <button id="navBrowse">Browse</button>
+  </nav>
   <span class="stats" id="headerStats"></span>
   <button id="refreshBtn" class="primary">↻ Refresh feeds</button>
 </header>
 
-<div class="layout">
-  <aside>
-    <h2>Search</h2>
-    <input type="search" id="search" class="field" placeholder="keyword…" />
-
-    <h2>Domain</h2>
-    <div class="chips" id="domainChips">
-      <span class="chip active" data-domain="">All</span>
-      <span class="chip" data-domain="cyber">Cyber</span>
-      <span class="chip" data-domain="ai">AI</span>
+<!-- ============ OVERVIEW ============ -->
+<section id="overview" class="wrap">
+  <div class="kpis" id="kpis"></div>
+  <div class="grid">
+    <div class="col">
+      <div class="card"><h3>Latest</h3><div id="ovLatest"></div></div>
     </div>
-
-    <h2>Category</h2>
-    <select id="category" class="field"><option value="">All categories</option></select>
-
-    <h2>Severity</h2>
-    <div class="chips" id="sevChips">
-      <span class="chip active" data-sev="">Any</span>
-      <span class="chip" data-sev="critical">Critical</span>
-      <span class="chip" data-sev="high">High</span>
-      <span class="chip" data-sev="medium">Medium</span>
-      <span class="chip" data-sev="low">Low</span>
+    <div class="col">
+      <div class="card">
+        <h3>Severity</h3>
+        <div class="sevbar" id="sevBar"></div>
+        <div class="seglegend" id="sevLegend"></div>
+      </div>
+      <div class="card"><h3>By domain</h3><div id="ovDomain"></div></div>
+      <div class="card"><h3>Top categories</h3><div id="ovCats"></div></div>
+      <div class="card"><h3>Top sources</h3><div id="ovSources"></div></div>
     </div>
+  </div>
+  <div class="grid" style="margin-top:16px">
+    <div class="card"><h3>⚠ Critical &amp; actively exploited</h3><div id="ovCritical"></div></div>
+    <div class="card"><h3>AI × Cyber</h3><div id="ovInter"></div></div>
+  </div>
+</section>
 
-    <h2>Region</h2>
-    <select id="region" class="field">
-      <option value="">Any region</option>
-      <option value="us">US</option><option value="eu">EU</option>
-      <option value="uk">UK</option><option value="apac">APAC</option>
-    </select>
-
-    <h2>Sort</h2>
-    <select id="sort" class="field">
-      <option value="date">Newest first</option>
-      <option value="weight">Source weight</option>
-    </select>
-  </aside>
-
-  <main>
-    <div class="toolbar">
-      <span class="count" id="count">Loading…</span>
-    </div>
-    <div id="list"></div>
-  </main>
-</div>
+<!-- ============ BROWSE ============ -->
+<section id="browse" class="hidden">
+  <div class="layout">
+    <aside>
+      <h2>Search</h2>
+      <input type="search" id="search" class="field" placeholder="keyword…" />
+      <h2>Domain</h2>
+      <div class="chips" id="domainChips">
+        <span class="chip active" data-domain="">All</span>
+        <span class="chip" data-domain="cyber">Cyber</span>
+        <span class="chip" data-domain="ai">AI</span>
+      </div>
+      <h2>Category</h2>
+      <select id="category" class="field"><option value="">All categories</option></select>
+      <h2>Severity</h2>
+      <div class="chips" id="sevChips">
+        <span class="chip active" data-sev="">Any</span>
+        <span class="chip" data-sev="critical">Critical</span>
+        <span class="chip" data-sev="high">High</span>
+        <span class="chip" data-sev="medium">Medium</span>
+        <span class="chip" data-sev="low">Low</span>
+      </div>
+      <h2>Region</h2>
+      <select id="region" class="field">
+        <option value="">Any region</option>
+        <option value="us">US</option><option value="eu">EU</option>
+        <option value="uk">UK</option><option value="apac">APAC</option>
+      </select>
+      <h2>Sort</h2>
+      <select id="sort" class="field">
+        <option value="date">Newest first</option>
+        <option value="weight">Source weight</option>
+      </select>
+    </aside>
+    <main>
+      <div class="toolbar"><span class="count" id="count">Loading…</span></div>
+      <div id="list"></div>
+      <button id="loadMore" class="hidden">Load more</button>
+    </main>
+  </div>
+</section>
 
 <script>
 const $ = (s) => document.querySelector(s);
-const state = { domain: "", category: "", severity: "", region: "", q: "", sort: "date" };
-let searchTimer = null;
+const state = { domain: "", category: "", severity: "", region: "", q: "", sort: "date", offset: 0 };
+let searchTimer = null, browseLoaded = false;
 
-async function loadCategories() {
-  const data = await fetch("/api/categories").then(r => r.json());
-  const sel = $("#category");
-  const cats = data.categories || {};
-  for (const [domain, group] of Object.entries(cats)) {
-    const og = document.createElement("optgroup");
-    og.label = domain.toUpperCase();
-    for (const [key, spec] of Object.entries(group)) {
-      const o = document.createElement("option");
-      o.value = key;                       // matches substring of "domain.key"
-      o.textContent = spec.label || key;
-      og.appendChild(o);
-    }
-    sel.appendChild(og);
-  }
+function escapeHtml(s) {
+  return (s || "").replace(/[&<>"']/g, c =>
+    ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
 }
-
-async function loadStats() {
-  const s = await fetch("/api/stats").then(r => r.json());
-  const parts = [`${s.total} articles`];
-  if (s.by_domain.cyber) parts.push(`${s.by_domain.cyber} cyber`);
-  if (s.by_domain.ai) parts.push(`${s.by_domain.ai} AI`);
-  if (s.by_severity.critical) parts.push(`${s.by_severity.critical} critical`);
-  $("#headerStats").textContent = parts.join(" · ");
-}
-
 function fmtDate(iso) {
   if (!iso) return "";
   try { return new Date(iso).toLocaleDateString(undefined, {month:"short", day:"numeric"}); }
   catch { return iso.slice(0,10); }
 }
 
-function card(a) {
-  const el = document.createElement("div");
-  el.className = "card";
+/* ---------- view switching ---------- */
+function show(view) {
+  const ov = view === "overview";
+  $("#overview").classList.toggle("hidden", !ov);
+  $("#browse").classList.toggle("hidden", ov);
+  $("#navOverview").classList.toggle("active", ov);
+  $("#navBrowse").classList.toggle("active", !ov);
+  if (!ov && !browseLoaded) { loadCategories().then(loadBrowse); browseLoaded = true; }
+}
+function jumpToBrowse(patch) {
+  Object.assign(state, { domain:"", category:"", severity:"", region:"", q:"" }, patch, { offset: 0 });
+  show("browse");
+  if (!browseLoaded) { loadCategories().then(() => { syncControls(); loadBrowse(); }); browseLoaded = true; }
+  else { syncControls(); loadBrowse(); }
+}
+
+/* ---------- overview ---------- */
+async function loadOverview() {
+  const o = await fetch("/api/overview?highlights=8").then(r => r.json());
+  $("#headerStats").textContent =
+    `${o.total} articles · ${o.new_last_24h} new (24h)`;
+
+  const crit = o.critical_count ?? (o.by_severity.critical || 0);
+  const inter = o.intersection_count ?? 0;
+  $("#kpis").innerHTML = `
+    ${kpi("", o.total, "Total articles", {})}
+    ${kpi("", o.new_last_7d, "New this week", {})}
+    ${kpi("crit", crit, "Critical", {severity:"critical"})}
+    ${kpi("inter", inter, "AI × Cyber", {category:"intersection"})}`;
+  $("#kpis").querySelectorAll(".kpi").forEach(el => {
+    const f = el.dataset.filter;
+    if (f) el.addEventListener("click", () => jumpToBrowse(JSON.parse(f)));
+  });
+
+  $("#ovLatest").innerHTML = o.latest.map(hl).join("") || emptyLine();
+  $("#ovCritical").innerHTML = o.critical.map(hl).join("") || emptyLine("No critical items.");
+  $("#ovInter").innerHTML = o.intersection.map(hl).join("") || emptyLine("No AI×Cyber items.");
+
+  renderSeverity(o.by_severity);
+  $("#ovDomain").innerHTML = bars(Object.entries(o.by_domain), o.total, k => ({domain:k}));
+  $("#ovCats").innerHTML = bars(o.top_categories.filter(([k])=>k!=="uncategorized").slice(0,8),
+                                o.top_categories[0]?.[1] || 1,
+                                k => ({category: k.split(".").pop()}));
+  $("#ovSources").innerHTML = bars(o.top_sources, o.top_sources[0]?.[1] || 1, k => ({source:k}));
+}
+function kpi(cls, n, label, filter) {
+  return `<div class="kpi ${cls}" data-filter='${JSON.stringify(filter)}'>
+    <div class="n">${n}</div><div class="l">${label}</div></div>`;
+}
+function hl(a) {
+  const sev = a.severity ? `<span class="sev ${a.severity}">${a.severity}</span>` : "";
+  return `<a class="hl" href="${a.url}" target="_blank" rel="noopener">
+    <div class="t">${escapeHtml(a.title)}</div>
+    <div class="m"><span class="badge dom-${a.domain}">${a.domain}</span>${sev}
+      <span>${escapeHtml(a.source)}</span><span>·</span><span>${fmtDate(a.published)}</span></div></a>`;
+}
+function emptyLine(t) { return `<div style="color:var(--muted);font-size:13px;padding:6px 0">${t||"Nothing yet."}</div>`; }
+function bars(entries, max, toFilter) {
+  return entries.map(([k, v]) => {
+    const pct = Math.max(3, Math.round(100 * v / (max || 1)));
+    const label = k.includes(".") ? k.split(".").pop() : k;
+    return `<div class="bar" data-filter='${JSON.stringify(toFilter(k))}'>
+      <span class="name">${escapeHtml(label)}</span>
+      <span class="track"><span class="fill" style="width:${pct}%"></span></span>
+      <span class="v">${v}</span></div>`;
+  }).join("");
+}
+function renderSeverity(sev) {
+  const order = [["critical","--crit"],["high","--high"],["medium","--med"],["low","--low"]];
+  const total = order.reduce((s,[k]) => s + (sev[k]||0), 0) || 1;
+  $("#sevBar").innerHTML = order.map(([k,c]) =>
+    `<span style="width:${100*(sev[k]||0)/total}%;background:var(${c})"></span>`).join("");
+  $("#sevLegend").innerHTML = order.map(([k,c]) =>
+    `<span style="cursor:pointer" data-sev="${k}"><b style="color:var(${c})">${sev[k]||0}</b> ${k}</span>`).join("");
+  $("#sevLegend").querySelectorAll("[data-sev]").forEach(el =>
+    el.addEventListener("click", () => jumpToBrowse({severity: el.dataset.sev})));
+}
+// event delegation for the clickable bars
+document.addEventListener("click", e => {
+  const bar = e.target.closest(".bar");
+  if (bar && bar.dataset.filter) jumpToBrowse(JSON.parse(bar.dataset.filter));
+});
+
+/* ---------- browse ---------- */
+async function loadCategories() {
+  if ($("#category").dataset.loaded) return;
+  const data = await fetch("/api/categories").then(r => r.json());
+  const sel = $("#category");
+  for (const [domain, group] of Object.entries(data.categories || {})) {
+    const og = document.createElement("optgroup"); og.label = domain.toUpperCase();
+    for (const [key, spec] of Object.entries(group)) {
+      const o = document.createElement("option");
+      o.value = key; o.textContent = spec.label || key; og.appendChild(o);
+    }
+    sel.appendChild(og);
+  }
+  sel.dataset.loaded = "1";
+}
+function syncControls() {
+  $("#category").value = state.category || "";
+  $("#region").value = state.region || "";
+  $("#sort").value = state.sort || "date";
+  $("#search").value = state.q || "";
+  $("#domainChips").querySelectorAll(".chip").forEach(c =>
+    c.classList.toggle("active", (c.dataset.domain||"") === state.domain));
+  $("#sevChips").querySelectorAll(".chip").forEach(c =>
+    c.classList.toggle("active", (c.dataset.sev||"") === state.severity));
+}
+function acard(a) {
   const sev = a.severity ? `<span class="sev ${a.severity}">${a.severity}</span>` : "";
   const tags = (a.categories || []).map(c =>
     `<span class="tag" data-cat="${c.split('.').pop()}">${c}</span>`).join("");
-  const regions = (a.regions || []).map(r => `<span class="badge">${r.toUpperCase()}</span>`).join(" ");
+  const dup = a.duplicate_of ? `<span title="near-duplicate of another item">· similar</span>` : "";
+  const el = document.createElement("div");
+  el.className = "acard";
   el.innerHTML = `
     <a class="title" href="${a.url}" target="_blank" rel="noopener">${escapeHtml(a.title)}</a>
-    <div class="meta">
-      <span class="badge dom-${a.domain}">${a.domain}</span>
-      ${sev}
-      <span>${escapeHtml(a.source)}</span>
-      <span>·</span><span>${fmtDate(a.published)}</span>
-      ${regions}
-    </div>
-    ${a.summary ? `<div class="summary">${escapeHtml(a.summary.slice(0,240))}${a.summary.length>240?"…":""}</div>` : ""}
+    <div class="meta"><span class="badge dom-${a.domain}">${a.domain}</span>${sev}
+      <span>${escapeHtml(a.source)}</span><span>·</span><span>${fmtDate(a.published)}</span>${dup}</div>
+    ${a.summary ? `<div class="summary">${escapeHtml(a.summary.slice(0,240))}${a.summary.length>240?"…":""}</div>`:""}
     <div class="tags">${tags}</div>`;
   el.querySelectorAll(".tag").forEach(t => t.addEventListener("click", () => {
-    $("#category").value = t.dataset.cat; state.category = t.dataset.cat; load();
+    state.category = t.dataset.cat; state.offset = 0; syncControls(); loadBrowse();
   }));
   return el;
 }
-
-function escapeHtml(s) {
-  return (s || "").replace(/[&<>"']/g, c =>
-    ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
-}
-
-async function load() {
+async function loadBrowse(append = false) {
   const p = new URLSearchParams();
   for (const [k, v] of Object.entries(state)) if (v) p.set(k, v);
-  p.set("limit", "200");
-  $("#count").textContent = "Loading…";
+  p.set("limit", "50");
+  if (!append) { state.offset = 0; p.set("offset", "0"); }
   const data = await fetch("/api/articles?" + p).then(r => r.json());
   const list = $("#list");
-  list.innerHTML = "";
-  if (!data.articles.length) {
-    list.innerHTML = `<div class="empty">No articles match these filters.<br>Try Refresh feeds or clear filters.</div>`;
+  if (!append) list.innerHTML = "";
+  if (!data.articles.length && !append) {
+    list.innerHTML = `<div class="empty">No articles match these filters.</div>`;
   } else {
-    data.articles.forEach(a => list.appendChild(card(a)));
+    data.articles.forEach(a => list.appendChild(acard(a)));
   }
-  $("#count").textContent = `${data.count} article${data.count === 1 ? "" : "s"}`;
+  const shown = list.querySelectorAll(".acard").length;
+  $("#count").textContent = `${shown} of ${data.total}`;
+  $("#loadMore").classList.toggle("hidden", shown >= data.total);
 }
 
-// --- wire up controls ---
+/* ---------- controls ---------- */
+$("#navOverview").addEventListener("click", () => show("overview"));
+$("#navBrowse").addEventListener("click", () => show("browse"));
 $("#domainChips").addEventListener("click", e => {
-  if (!e.target.dataset.domain && e.target.dataset.domain !== "") return;
-  if (e.target.classList.contains("chip")) {
-    $("#domainChips").querySelectorAll(".chip").forEach(c => c.classList.remove("active"));
-    e.target.classList.add("active"); state.domain = e.target.dataset.domain; load();
-  }
+  if (!e.target.classList.contains("chip")) return;
+  $("#domainChips").querySelectorAll(".chip").forEach(c => c.classList.remove("active"));
+  e.target.classList.add("active"); state.domain = e.target.dataset.domain; state.offset = 0; loadBrowse();
 });
 $("#sevChips").addEventListener("click", e => {
-  if (e.target.classList.contains("chip")) {
-    $("#sevChips").querySelectorAll(".chip").forEach(c => c.classList.remove("active"));
-    e.target.classList.add("active"); state.severity = e.target.dataset.sev; load();
-  }
+  if (!e.target.classList.contains("chip")) return;
+  $("#sevChips").querySelectorAll(".chip").forEach(c => c.classList.remove("active"));
+  e.target.classList.add("active"); state.severity = e.target.dataset.sev; state.offset = 0; loadBrowse();
 });
-$("#category").addEventListener("change", e => { state.category = e.target.value; load(); });
-$("#region").addEventListener("change", e => { state.region = e.target.value; load(); });
-$("#sort").addEventListener("change", e => { state.sort = e.target.value; load(); });
+$("#category").addEventListener("change", e => { state.category = e.target.value; state.offset = 0; loadBrowse(); });
+$("#region").addEventListener("change", e => { state.region = e.target.value; state.offset = 0; loadBrowse(); });
+$("#sort").addEventListener("change", e => { state.sort = e.target.value; state.offset = 0; loadBrowse(); });
 $("#search").addEventListener("input", e => {
   clearTimeout(searchTimer);
-  searchTimer = setTimeout(() => { state.q = e.target.value.trim(); load(); }, 300);
+  searchTimer = setTimeout(() => { state.q = e.target.value.trim(); state.offset = 0; loadBrowse(); }, 300);
 });
+$("#loadMore").addEventListener("click", () => { state.offset += 50; loadBrowse(true); });
 
 $("#refreshBtn").addEventListener("click", async () => {
   const btn = $("#refreshBtn");
   btn.disabled = true; btn.innerHTML = '<span class="spin"></span> Refreshing…';
   await fetch("/api/refresh", { method: "POST" });
-  // poll health until refresh finishes
   const poll = setInterval(async () => {
     const h = await fetch("/api/health").then(r => r.json());
     if (!h.refresh.running) {
       clearInterval(poll);
       btn.disabled = false; btn.innerHTML = "↻ Refresh feeds";
-      await loadStats(); await load();
+      await loadOverview();
+      if (browseLoaded && !$("#browse").classList.contains("hidden")) loadBrowse();
     }
   }, 1500);
 });
 
-// --- init ---
-(async () => { await loadCategories(); await loadStats(); await load(); })();
+/* ---------- init ---------- */
+loadOverview();
 </script>
 </body>
 </html>

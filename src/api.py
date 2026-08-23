@@ -88,6 +88,11 @@ def get_stats():
     return _svc().stats()
 
 
+@app.get("/api/overview")
+def get_overview(highlights: int = Query(8, ge=1, le=20)):
+    return _svc().overview(highlights=highlights)
+
+
 def _do_refresh():
     _refresh_state["running"] = True
     _refresh_state["last_error"] = None

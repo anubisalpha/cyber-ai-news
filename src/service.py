@@ -147,3 +147,32 @@ class NewsService:
     # ---- aggregates ------------------------------------------------------
     def stats(self) -> dict:
         return self.store.stats()
+
+    def overview(self, highlights: int = 8) -> dict:
+        """A one-call summary for the overview dashboard."""
+        stats = self.store.stats()
+        now = datetime.now(timezone.utc)
+
+        def _recent(sort="date", **filters):
+            items, total = self.store.query(sort=sort, limit=highlights * 2, **filters)
+            items = [a for a in items if not a.duplicate_of][:highlights]
+            return [a.to_dict() for a in items], total
+
+        latest, _ = _recent()
+        critical, critical_n = _recent(severity="critical")
+        intersection, intersection_n = _recent(category="intersection")
+
+        return {
+            "total": stats["total"],
+            "by_domain": stats["by_domain"],
+            "by_severity": stats["by_severity"],
+            "top_categories": list(stats["by_category"].items())[:10],
+            "top_sources": list(stats["by_source"].items())[:8],
+            "new_last_24h": self.store.new_since((now - timedelta(days=1)).isoformat()),
+            "new_last_7d": self.store.new_since((now - timedelta(days=7)).isoformat()),
+            "critical_count": critical_n,
+            "intersection_count": intersection_n,
+            "latest": latest,
+            "critical": critical,
+            "intersection": intersection,
+        }

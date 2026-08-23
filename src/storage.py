@@ -174,6 +174,13 @@ class Storage:
             "by_source": dict(sorted(by_source.items(), key=lambda kv: -kv[1])),
         }
 
+    def new_since(self, iso: str) -> int:
+        """Count articles first seen at/after an ISO timestamp."""
+        return self.conn.execute(
+            "SELECT COUNT(*) FROM articles WHERE first_seen IS NOT NULL AND first_seen >= ?",
+            (iso,),
+        ).fetchone()[0]
+
     def _group(self, column: str, skip_null: bool = False) -> dict:
         sql = f"SELECT {column}, COUNT(*) FROM articles"
         if skip_null:
