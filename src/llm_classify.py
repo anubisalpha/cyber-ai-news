@@ -13,7 +13,7 @@ Config (settings.yaml):
   classify:
     llm_fallback:
       enabled: false
-      model: gemini-2.0-flash
+      model: gemini-3.6-flash
       batch_size: 10
       max_items: 40        # cap per refresh to bound cost
 """
@@ -33,7 +33,7 @@ class LLMClassifier:
     def __init__(self, categories_cfg: dict, settings: dict):
         cfg = settings.get("classify", {}).get("llm_fallback", {}) or {}
         self.enabled = bool(cfg.get("enabled", False))
-        self.model_name = cfg.get("model", "gemini-2.0-flash")
+        self.model_name = cfg.get("model", "gemini-3.6-flash")
         self.batch_size = int(cfg.get("batch_size", 10))
         self.max_items = int(cfg.get("max_items", 40))
         self.fallback_tag = settings.get("classify", {}).get(

@@ -21,7 +21,9 @@ Status legend: ⬜ todo · 🔄 in progress · ✅ done
   - **LLM fallback** (`src/llm_classify.py`): optional pass over `uncategorized`
     items, google-generativeai + GOOGLE_API_KEY (gemini flash). Batched, graceful
     no-op if key/lib missing. Toggle `classify.llm_fallback.{enabled,model,batch_size,max_items}`.
-    ⏳ live-validated pending `google-generativeai` install (off by default).
+    ✅ live-validated (gemini-3.6-flash): rescued 9/12 sampled uncategorized items
+    with sensible tags; off by default. NOTE: the `google.generativeai` SDK is
+    deprecated upstream — migrate to `google.genai` later.
 - ✅ **Near-duplicate detection** (`src/dedupe.py`) — token-set Jaccard,
   cross-source-only + time-window guards to avoid templated-title false merges;
   sets `cluster_id` / `duplicate_of`.
