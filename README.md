@@ -10,9 +10,10 @@ in **`config/`** as editable lists. No feed or category is hard-coded in the cod
 ## What it does
 
 ```
-fetch (RSS + JSON APIs)  ->  classify (keyword rules)  ->  dedupe + store (JSON)  ->  query/filter
-                                                                                      |
-                                                                    CLI  ·  REST API  ·  web dashboard
+fetch (RSS + JSON APIs) -> classify (keyword rules + optional LLM fallback)
+                        -> near-duplicate clustering -> store (SQLite) -> query/filter
+                                                                          |
+                                                        CLI  ·  REST API  ·  web dashboard
 ```
 
 ## Layout
@@ -22,10 +23,11 @@ fetch (RSS + JSON APIs)  ->  classify (keyword rules)  ->  dedupe + store (JSON)
 | `config/sources.yaml` | The source list — RSS feeds & JSON APIs, each toggleable |
 | `config/categories.yaml` | The category taxonomy + keyword rules for auto-tagging |
 | `config/settings.yaml` | Runtime settings (timeouts, age filter, sort defaults) |
-| `src/` | Fetch, classify, orchestrate, CLI, REST API |
+| `src/` | Fetch, classify, LLM fallback, dedupe, storage, orchestrate, CLI, REST API |
 | `web/index.html` | Single-file web dashboard (served by the API) |
-| `tests/` | Classifier tests |
-| `data/articles.json` | Local cache / history of fetched+tagged articles (git-ignored) |
+| `tests/` | Tests: classify, dedupe, storage, llm, api (28) |
+| `data/news.db` | SQLite history of fetched+tagged articles (git-ignored) |
+| `PLAN.md` | Enhancement roadmap + status |
 
 ## Setup
 
@@ -67,7 +69,7 @@ API endpoints:
 
 | Method | Path | Purpose |
 |---|---|---|
-| GET | `/api/articles` | Filtered list. Params: `domain, category, severity, region, source, q, sort, limit` |
+| GET | `/api/articles` | Filtered, paginated list. Params: `domain, category, severity, region, source, q, sort, limit, offset, include_duplicates` (returns `total/offset/limit`) |
 | GET | `/api/categories` | The taxonomy |
 | GET | `/api/sources` | Configured sources |
 | GET | `/api/stats` | Aggregate counts (by domain / severity / category / source) |
@@ -102,14 +104,42 @@ applications · ethics & society · open source
 **Intersection:** a dedicated AI × Cyber bucket (prompt injection, deepfake fraud,
 AI-powered attacks, LLM security, etc.).
 
+## Classification (keywords + optional LLM fallback)
+
+Tagging is **rule-based** (fast, free, deterministic) via the keyword lists in
+`categories.yaml`. Items the rules can't place are marked `uncategorized`.
+
+An **optional LLM fallback** re-tags only those uncategorized items using Gemini,
+so it costs nothing on the common path. It's **off by default**:
+
+```yaml
+# config/settings.yaml
+classify:
+  llm_fallback:
+    enabled: true            # turn it on
+    model: gemini-2.0-flash
+    batch_size: 10
+    max_items: 40            # cap per refresh to bound cost
+```
+
+Requires `pip install google-generativeai` and `GOOGLE_API_KEY` (read from the
+environment or the claudecore `.env`). If either is missing it's a silent no-op.
+
+## Storage & deduplication
+
+- **SQLite** (`data/news.db`) — filtering and pagination run in SQL, so unlimited
+  history scales. The legacy `data/articles.json` is imported once on first run.
+- **Near-duplicate clustering** groups the same story across outlets
+  (`cluster_id` / `duplicate_of`). Guards against templated-title false merges by
+  only merging across *different* sources within a time window (see `dedupe:` in
+  settings). Hide dupes via `/api/articles?include_duplicates=false`.
+
 ## Extending
 
 - **Add a source:** append an entry to `config/sources.yaml`. RSS works out of the
   box; a JSON API also needs a small parser in `src/fetch.py` (`JSON_PARSERS`).
 - **Add/tune a category:** edit `config/categories.yaml` — add keywords or a new
   category block. No code change needed.
-- **Better tagging later:** the classifier is rule-based today. An LLM classifier
-  could be added as an optional pass for fuzzy items without changing the config.
 
 ## Tests
 

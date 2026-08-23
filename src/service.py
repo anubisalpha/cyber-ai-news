@@ -1,14 +1,16 @@
-"""Orchestration: fetch -> classify -> dedupe -> store -> query."""
+"""Orchestration: fetch -> classify -> (LLM fallback) -> dedupe -> store -> query."""
 from __future__ import annotations
 
-import json
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
 from . import config
 from .classify import Classifier
+from .dedupe import cluster_duplicates
 from .fetch import fetch_source
+from .llm_classify import LLMClassifier
 from .models import Article, utcnow_iso
+from .storage import Storage
 
 ROOT = Path(__file__).resolve().parent.parent
 
@@ -18,11 +20,23 @@ class NewsService:
         self.settings = config.load_settings()
         self.categories_cfg = config.load_categories()
         self.classifier = Classifier(self.categories_cfg, self.settings)
-        data_file = self.settings.get("storage", {}).get("data_file", "data/articles.json")
-        self.data_path = ROOT / data_file
+        self.llm = LLMClassifier(self.categories_cfg, self.settings)
+
+        storage_cfg = self.settings.get("storage", {})
+        db_file = storage_cfg.get("db_file", "data/news.db")
+        self.db_path = ROOT / db_file
+        first_time = not self.db_path.exists()
+        self.store = Storage(self.db_path)
+
+        # One-time migration from the legacy JSON cache, if present.
+        if first_time:
+            legacy = ROOT / storage_cfg.get("data_file", "data/articles.json")
+            imported = self.store.import_json(legacy)
+            if imported:
+                print(f"Migrated {imported} articles from {legacy.name} into SQLite.")
 
     # ---- pipeline --------------------------------------------------------
-    def refresh(self, verbose: bool = True) -> list[Article]:
+    def refresh(self, verbose: bool = True) -> int:
         sources = config.load_sources(enabled_only=True)
         collected: list[Article] = []
         for src in sources:
@@ -35,70 +49,49 @@ class NewsService:
                 if verbose:
                     print(f"  [fail] {src['name']}: {exc}")
 
+        # 1. Rule-based classification.
         for art in collected:
             self.classifier.classify(art)
 
+        # 2. Optional LLM fallback for whatever the rules left uncategorized.
+        rescued = self.llm.classify_uncategorized(collected, verbose=verbose)
+        if verbose and rescued:
+            print(f"  LLM fallback re-tagged {rescued} uncategorized items")
+
+        # 3. Age filter + stamp first_seen, then upsert into SQLite.
         collected = self._filter_by_age(collected)
-        merged = self._merge_with_stored(collected)
-        merged = self._trim_history(merged)
-        self._save(merged)
-        if verbose:
-            print(f"Stored {len(merged)} articles -> {self.data_path}")
-        return merged
-
-    # ---- storage ---------------------------------------------------------
-    def _merge_with_stored(self, new: list[Article]) -> list[Article]:
-        dedupe = self.settings.get("storage", {}).get("dedupe", True)
         now = utcnow_iso()
-        existing = self.load_stored()
-        seen_first = {a.id: a.first_seen for a in existing}
-        by_id = {a.id: a for a in existing}
-        for a in new:
-            # Preserve original first_seen if we've seen this URL before,
-            # otherwise stamp it now (this is a brand-new fetch).
-            a.first_seen = seen_first.get(a.id) or a.first_seen or now
-            by_id[a.id] = a  # newest content wins, first_seen preserved above
-        merged = list(by_id.values()) if dedupe else existing + new
-        merged.sort(key=lambda a: a.published or "", reverse=True)
-        return merged
+        for a in collected:
+            a.first_seen = a.first_seen or now  # storage COALESCE keeps the original
+        self.store.upsert_many(collected)
 
-    def _trim_history(self, articles: list[Article]) -> list[Article]:
-        """Drop articles first seen longer ago than history_retention_days.
+        # 4. Near-duplicate clustering across the whole corpus.
+        self._recluster()
 
-        0 (default) means unlimited history — keep everything.
-        """
-        days = self.settings.get("storage", {}).get("history_retention_days", 0)
-        if not days:
-            return articles
-        cutoff = datetime.now(timezone.utc) - timedelta(days=days)
-        kept = []
-        for a in articles:
-            ref = a.first_seen or a.published
-            if not ref:
-                kept.append(a)
-                continue
-            try:
-                dt = datetime.fromisoformat(ref)
-                if dt.tzinfo is None:
-                    dt = dt.replace(tzinfo=timezone.utc)
-                if dt >= cutoff:
-                    kept.append(a)
-            except ValueError:
-                kept.append(a)
-        return kept
-
-    def load_stored(self) -> list[Article]:
-        if not self.data_path.exists():
-            return []
-        raw = json.loads(self.data_path.read_text(encoding="utf-8"))
-        return [Article.from_dict(d) for d in raw]
-
-    def _save(self, articles: list[Article]) -> None:
-        self.data_path.parent.mkdir(parents=True, exist_ok=True)
-        self.data_path.write_text(
-            json.dumps([a.to_dict() for a in articles], indent=2, ensure_ascii=False),
-            encoding="utf-8",
+        # 5. Retention trim.
+        removed = self.store.trim_history(
+            self.settings.get("storage", {}).get("history_retention_days", 0)
         )
+
+        total = self.store.count()
+        if verbose:
+            extra = f" (trimmed {removed})" if removed else ""
+            print(f"Stored {total} articles in {self.db_path.name}{extra}")
+        return total
+
+    def _recluster(self) -> None:
+        dcfg = self.settings.get("dedupe", {})
+        if not dcfg.get("enabled", True):
+            return
+        articles = self.store.all()
+        changed = cluster_duplicates(
+            articles,
+            threshold=dcfg.get("title_similarity", 0.7),
+            cross_source_only=dcfg.get("cross_source_only", True),
+            max_days_apart=dcfg.get("max_days_apart", 3),
+        )
+        if changed:
+            self.store.replace_all(changed)
 
     def _filter_by_age(self, articles: list[Article]) -> list[Article]:
         max_age = self.settings.get("fetch", {}).get("max_age_days", 0)
@@ -123,61 +116,34 @@ class NewsService:
     # ---- query -----------------------------------------------------------
     def query(
         self,
-        domain: str | None = None,
-        category: str | None = None,
-        severity: str | None = None,
-        region: str | None = None,
-        source: str | None = None,
-        q: str | None = None,
-        limit: int | None = None,
-        sort: str | None = None,
-    ) -> list[Article]:
-        items = self.load_stored()
+        domain=None, category=None, severity=None, region=None,
+        source=None, q=None, limit=None, sort=None, offset=0,
+        include_duplicates=True,
+    ):
+        """Return a list of Articles (back-compat). Use query_page for totals."""
+        items, _ = self.query_page(
+            domain=domain, category=category, severity=severity, region=region,
+            source=source, q=q, limit=limit, sort=sort, offset=offset,
+            include_duplicates=include_duplicates,
+        )
+        return items
 
-        if domain:
-            items = [a for a in items if a.domain in (domain, "both")]
-        if category:
-            items = [a for a in items if any(category in c for c in a.categories)]
-        if severity:
-            items = [a for a in items if a.severity == severity]
-        if region:
-            items = [a for a in items if region in a.regions]
-        if source:
-            items = [a for a in items if source.lower() in a.source.lower()]
-        if q:
-            needle = q.lower()
-            items = [
-                a for a in items
-                if needle in a.title.lower() or needle in (a.summary or "").lower()
-            ]
-
+    def query_page(
+        self,
+        domain=None, category=None, severity=None, region=None,
+        source=None, q=None, limit=None, sort=None, offset=0,
+        include_duplicates=True,
+    ) -> tuple[list[Article], int]:
         sort = sort or self.settings.get("output", {}).get("default_sort", "date")
-        if sort == "weight":
-            items.sort(key=lambda a: (a.weight, a.published or ""), reverse=True)
-        else:
-            items.sort(key=lambda a: a.published or "", reverse=True)
-
         limit = limit or self.settings.get("output", {}).get("default_limit", 25)
-        return items[:limit]
+        items, total = self.store.query(
+            domain=domain, category=category, severity=severity, region=region,
+            source=source, q=q, sort=sort, limit=limit, offset=offset,
+        )
+        if not include_duplicates:
+            items = [a for a in items if not a.duplicate_of]
+        return items, total
 
     # ---- aggregates ------------------------------------------------------
     def stats(self) -> dict:
-        items = self.load_stored()
-        by_domain: dict[str, int] = {}
-        by_severity: dict[str, int] = {}
-        by_category: dict[str, int] = {}
-        by_source: dict[str, int] = {}
-        for a in items:
-            by_domain[a.domain] = by_domain.get(a.domain, 0) + 1
-            if a.severity:
-                by_severity[a.severity] = by_severity.get(a.severity, 0) + 1
-            for c in a.categories:
-                by_category[c] = by_category.get(c, 0) + 1
-            by_source[a.source] = by_source.get(a.source, 0) + 1
-        return {
-            "total": len(items),
-            "by_domain": by_domain,
-            "by_severity": by_severity,
-            "by_category": dict(sorted(by_category.items(), key=lambda kv: -kv[1])),
-            "by_source": dict(sorted(by_source.items(), key=lambda kv: -kv[1])),
-        }
+        return self.store.stats()

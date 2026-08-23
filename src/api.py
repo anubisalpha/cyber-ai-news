@@ -56,12 +56,21 @@ def get_articles(
     q: Optional[str] = None,
     sort: Optional[str] = Query(None, pattern="^(date|weight)$"),
     limit: int = Query(50, ge=1, le=500),
+    offset: int = Query(0, ge=0),
+    include_duplicates: bool = True,
 ):
-    items = _svc().query(
+    items, total = _svc().query_page(
         domain=domain, category=category, severity=severity, region=region,
-        source=source, q=q, sort=sort, limit=limit,
+        source=source, q=q, sort=sort, limit=limit, offset=offset,
+        include_duplicates=include_duplicates,
     )
-    return {"count": len(items), "articles": [a.to_dict() for a in items]}
+    return {
+        "count": len(items),
+        "total": total,
+        "offset": offset,
+        "limit": limit,
+        "articles": [a.to_dict() for a in items],
+    }
 
 
 @app.get("/api/categories")

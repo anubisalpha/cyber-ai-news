@@ -34,7 +34,9 @@ categories:
     malware:
       label: Malware & Ransomware
       keywords: [ransomware, malware, trojan, botnet, loader, infostealer,
-                 backdoor, rootkit, wiper, raas, lockbit, alphv, cl0p]
+                 backdoor, rootkit, wiper, raas, lockbit, alphv, cl0p,
+                 malicious extension, browser extension, malicious app, spyware,
+                 stealer, wallet secrets, seed phrase, crypto wallet, drainer]
     patches:
       label: Patches & Advisories
       keywords: [patch tuesday, security update, hotfix, advisory, patched,
@@ -42,15 +44,19 @@ categories:
     supply_chain:
       label: Supply Chain
       keywords: [supply chain, npm package, pypi, dependency, typosquat,
-                 malicious package, compromised package, sbom]
+                 malicious package, compromised package, sbom, web3, third-party,
+                 fourth-party, poses as, pose as]
     cloud:
       label: Cloud & Infrastructure
       keywords: [misconfiguration, s3 bucket, kubernetes, container, iam,
-                 cloud security, azure, aws, gcp, saas security]
+                 cloud security, azure, aws, gcp, saas security, ot, ics, scada,
+                 industrial control, operational technology, plc, firmware]
     identity:
       label: Identity & Access
       keywords: [phishing, mfa bypass, credential stuffing, session hijack,
-                 password, sso, oauth abuse, account takeover, social engineering]
+                 password, sso, oauth abuse, account takeover, social engineering,
+                 contactless, payment card, card fraud, visa card, mastercard,
+                 skimming, insider threat, biometric, passkey]
     regulation:
       label: Regulation & Compliance
       keywords: [gdpr, nis2, dora, sec rule, compliance, fine, lawsuit,
@@ -58,19 +64,23 @@ categories:
     policy:
       label: Policy & Geopolitics
       keywords: [sanction, cyber warfare, government, national security,
-                 cyber strategy, executive order, espionage, state-sponsored]
+                 cyber strategy, executive order, espionage, state-sponsored,
+                 surveillance, facial recognition, cisa staffing, lawmakers,
+                 police, law enforcement]
     defense:
       label: Tools & Defense
       keywords: [detection, threat hunting, blue team, siem, edr, xdr,
-                 open-source tool, security tool, mitigation, hardening]
+                 open-source tool, security tool, mitigation, hardening, soc,
+                 security operations, wazuh, incident response, threat intelligence]
     industry:
       label: Industry & Business
       keywords: [funding round, acquires, acquisition, merger, layoffs,
-                 raises, valuation, ipo, startup]
+                 raises, valuation, ipo, startup, settlement]
     research:
       label: Research & Conferences
       keywords: [black hat, def con, defcon, research paper, whitepaper,
-                 new technique, disclosed, presented at]
+                 new technique, disclosed, presented at, post-quantum, pqc,
+                 quantum-safe, owasp, cmmc]
 
   # ---- AI -----------------------------------------------------------------
   ai:
@@ -101,15 +111,18 @@ categories:
     tooling:
       label: Tooling & Infrastructure
       keywords: [framework, gpu, chip, tpu, mlops, agent framework, inference,
-                 vector database, orchestration, langchain]
+                 vector database, orchestration, langchain, app, mac app, chatbot,
+                 feed, assistant]
     applications:
       label: Applications & Use Cases
       keywords: [deployed, use case, in healthcare, in finance, coding assistant,
-                 copilot, automation, real-world]
+                 copilot, automation, real-world, genetic, learning, search,
+                 revenue, market model, productivity]
     ethics:
       label: Ethics & Society
       keywords: [bias, misinformation, deepfake, copyright, job displacement,
-                 labor, discrimination, hallucination, disinformation]
+                 labor, discrimination, hallucination, disinformation, ai slop,
+                 backlash, consciousness, ai money]
     open_source:
       label: Open Source
       keywords: [open source, open-source, oss, weights released, apache 2.0,
@@ -121,7 +134,9 @@ categories:
       label: AI x Cyber (intersection)
       keywords: [ai-powered attack, llm security, prompt injection, deepfake fraud,
                  autonomous pentest, ai in soc, ai malware, weaponized ai,
-                 adversarial machine learning, model supply chain]
+                 adversarial machine learning, model supply chain, agentic ai,
+                 ai skill risks, owasp ai, ai insider threat, ai for soc,
+                 ai security]
 
 # =============================================================================
 # Cross-cutting filters (orthogonal tags — an article can have all of these)

@@ -3,3 +3,7 @@ requests>=2.31.0
 PyYAML>=6.0.1
 fastapi>=0.110.0
 uvicorn[standard]>=0.29.0
+
+# Optional: enables the LLM fallback classifier (classify.llm_fallback.enabled).
+# The service runs fine without it — this is only needed to re-tag uncategorised items.
+google-generativeai>=0.7.0

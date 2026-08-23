@@ -15,11 +15,27 @@ classify:
   fallback_category: uncategorized
   min_keyword_length: 3
 
+  # Optional LLM pass over ONLY the items the keyword rules leave uncategorized.
+  # Uses google-generativeai + GOOGLE_API_KEY (from env or the claudecore .env).
+  # Off by default; a no-op if the library/key are missing.
+  llm_fallback:
+    enabled: false
+    model: gemini-2.0-flash
+    batch_size: 10
+    max_items: 40          # cap per refresh to bound cost
+
+# Near-duplicate detection: cluster the same story across outlets.
+dedupe:
+  enabled: true
+  title_similarity: 0.7      # Jaccard threshold on title tokens (0-1)
+  cross_source_only: true    # only merge across DIFFERENT outlets (avoids templated-title false merges)
+  max_days_apart: 3          # only cluster items published within this many days
+
 storage:
-  # Where fetched+classified articles are cached as JSON.
+  # SQLite database (unlimited history scales here; JSON is import/export only).
+  db_file: data/news.db
+  # Legacy JSON cache — imported once into SQLite on first run if present.
   data_file: data/articles.json
-  # De-dupe window: drop items whose URL was already seen.
-  dedupe: true
   # History retention. 0 = unlimited (keep every fetch forever).
   # Set to a number of days to trim fetches first seen longer ago than that
   # on each refresh (e.g. 90 keeps the last ~3 months of history).

@@ -26,6 +26,13 @@ class Article:
     regions: list[str] = field(default_factory=list)
     content_types: list[str] = field(default_factory=list)
 
+    # How the categories were assigned: "rules" | "llm" | "none".
+    classified_by: str = "rules"
+
+    # Near-duplicate clustering (same story across outlets).
+    cluster_id: Optional[str] = None      # shared id for a group of near-dupes
+    duplicate_of: Optional[str] = None    # canonical article id, if this is a dupe
+
     @property
     def id(self) -> str:
         """Stable de-dupe key based on the URL."""

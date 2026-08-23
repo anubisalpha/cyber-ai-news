@@ -1,0 +1,201 @@
+"""SQLite storage backend.
+
+Replaces whole-file JSON read/write so unlimited history scales: filtering and
+pagination happen in SQL, and refresh upserts rows instead of rewriting a file.
+JSON is retained only as an import/export format.
+
+List-valued fields (categories/regions/content_types) are stored as JSON text
+and filtered with LIKE — good enough for the substring semantics the API uses.
+"""
+from __future__ import annotations
+
+import json
+import sqlite3
+from datetime import datetime, timedelta, timezone
+from pathlib import Path
+
+from .models import Article
+
+_COLUMNS = [
+    "id", "title", "url", "source", "domain", "summary", "published",
+    "first_seen", "weight", "severity", "categories", "regions",
+    "content_types", "classified_by", "cluster_id", "duplicate_of",
+]
+
+_LIST_FIELDS = {"categories", "regions", "content_types"}
+
+
+class Storage:
+    def __init__(self, db_path: Path):
+        self.db_path = Path(db_path)
+        self.db_path.parent.mkdir(parents=True, exist_ok=True)
+        self.conn = sqlite3.connect(str(self.db_path))
+        self.conn.row_factory = sqlite3.Row
+        self._init_schema()
+
+    def _init_schema(self) -> None:
+        self.conn.executescript(
+            """
+            CREATE TABLE IF NOT EXISTS articles (
+                id            TEXT PRIMARY KEY,
+                title         TEXT,
+                url           TEXT,
+                source        TEXT,
+                domain        TEXT,
+                summary       TEXT,
+                published     TEXT,
+                first_seen    TEXT,
+                weight        INTEGER,
+                severity      TEXT,
+                categories    TEXT,
+                regions       TEXT,
+                content_types TEXT,
+                classified_by TEXT,
+                cluster_id    TEXT,
+                duplicate_of  TEXT
+            );
+            CREATE INDEX IF NOT EXISTS idx_published  ON articles(published);
+            CREATE INDEX IF NOT EXISTS idx_domain     ON articles(domain);
+            CREATE INDEX IF NOT EXISTS idx_severity   ON articles(severity);
+            CREATE INDEX IF NOT EXISTS idx_first_seen ON articles(first_seen);
+            """
+        )
+        self.conn.commit()
+
+    # ---- (de)serialisation ----------------------------------------------
+    @staticmethod
+    def _to_row(a: Article) -> dict:
+        d = a.to_dict()
+        for f in _LIST_FIELDS:
+            d[f] = json.dumps(d.get(f) or [])
+        return {c: d.get(c) for c in _COLUMNS}
+
+    @staticmethod
+    def _from_row(row: sqlite3.Row) -> Article:
+        d = dict(row)
+        for f in _LIST_FIELDS:
+            d[f] = json.loads(d.get(f) or "[]")
+        return Article.from_dict(d)
+
+    # ---- writes ----------------------------------------------------------
+    def upsert_many(self, articles: list[Article]) -> int:
+        """Insert or update rows, preserving the original first_seen."""
+        placeholders = ", ".join(f":{c}" for c in _COLUMNS)
+        updates = ", ".join(
+            f"{c}=excluded.{c}" for c in _COLUMNS if c not in ("id", "first_seen")
+        )
+        sql = (
+            f"INSERT INTO articles ({', '.join(_COLUMNS)}) VALUES ({placeholders}) "
+            f"ON CONFLICT(id) DO UPDATE SET {updates}, "
+            f"first_seen=COALESCE(articles.first_seen, excluded.first_seen)"
+        )
+        rows = [self._to_row(a) for a in articles]
+        self.conn.executemany(sql, rows)
+        self.conn.commit()
+        return len(rows)
+
+    def trim_history(self, days: int) -> int:
+        """Delete rows first seen longer ago than `days`. 0 = keep everything."""
+        if not days:
+            return 0
+        cutoff = (datetime.now(timezone.utc) - timedelta(days=days)).isoformat()
+        cur = self.conn.execute(
+            "DELETE FROM articles WHERE first_seen IS NOT NULL AND first_seen < ?",
+            (cutoff,),
+        )
+        self.conn.commit()
+        return cur.rowcount
+
+    def replace_all(self, articles: list[Article]) -> None:
+        """Used by the dedup pass: rewrite full rows (fields may have changed)."""
+        self.upsert_many(articles)
+
+    # ---- reads -----------------------------------------------------------
+    def all(self) -> list[Article]:
+        cur = self.conn.execute("SELECT * FROM articles")
+        return [self._from_row(r) for r in cur.fetchall()]
+
+    def count(self) -> int:
+        return self.conn.execute("SELECT COUNT(*) FROM articles").fetchone()[0]
+
+    def query(
+        self,
+        domain=None, category=None, severity=None, region=None,
+        source=None, q=None, sort="date", limit=50, offset=0,
+    ) -> tuple[list[Article], int]:
+        where, params = [], []
+        if domain:
+            where.append("domain IN (?, 'both')")
+            params.append(domain)
+        if severity:
+            where.append("severity = ?")
+            params.append(severity)
+        if source:
+            where.append("source LIKE ?")
+            params.append(f"%{source}%")
+        if category:
+            where.append("categories LIKE ?")
+            params.append(f"%{category}%")
+        if region:
+            where.append("regions LIKE ?")
+            params.append(f"%{region}%")
+        if q:
+            where.append("(title LIKE ? OR summary LIKE ?)")
+            params.extend([f"%{q}%", f"%{q}%"])
+
+        clause = ("WHERE " + " AND ".join(where)) if where else ""
+        order = ("weight DESC, published DESC" if sort == "weight"
+                 else "published DESC")
+
+        total = self.conn.execute(
+            f"SELECT COUNT(*) FROM articles {clause}", params
+        ).fetchone()[0]
+
+        cur = self.conn.execute(
+            f"SELECT * FROM articles {clause} ORDER BY {order} LIMIT ? OFFSET ?",
+            [*params, limit, offset],
+        )
+        return [self._from_row(r) for r in cur.fetchall()], total
+
+    def stats(self) -> dict:
+        by_domain = self._group("domain")
+        by_severity = self._group("severity", skip_null=True)
+        by_source = self._group("source")
+        # categories are multi-valued -> count in Python
+        by_category: dict[str, int] = {}
+        for (cats,) in self.conn.execute("SELECT categories FROM articles"):
+            for c in json.loads(cats or "[]"):
+                by_category[c] = by_category.get(c, 0) + 1
+        return {
+            "total": self.count(),
+            "by_domain": by_domain,
+            "by_severity": by_severity,
+            "by_category": dict(sorted(by_category.items(), key=lambda kv: -kv[1])),
+            "by_source": dict(sorted(by_source.items(), key=lambda kv: -kv[1])),
+        }
+
+    def _group(self, column: str, skip_null: bool = False) -> dict:
+        sql = f"SELECT {column}, COUNT(*) FROM articles"
+        if skip_null:
+            sql += f" WHERE {column} IS NOT NULL"
+        sql += f" GROUP BY {column}"
+        return {k: v for k, v in self.conn.execute(sql) if k is not None}
+
+    # ---- migration / export ---------------------------------------------
+    def import_json(self, json_path: Path) -> int:
+        if not Path(json_path).exists():
+            return 0
+        raw = json.loads(Path(json_path).read_text(encoding="utf-8"))
+        arts = [Article.from_dict(d) for d in raw]
+        return self.upsert_many(arts)
+
+    def export_json(self, json_path: Path) -> int:
+        arts = self.all()
+        Path(json_path).write_text(
+            json.dumps([a.to_dict() for a in arts], indent=2, ensure_ascii=False),
+            encoding="utf-8",
+        )
+        return len(arts)
+
+    def close(self) -> None:
+        self.conn.close()
