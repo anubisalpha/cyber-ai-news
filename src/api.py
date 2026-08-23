@@ -19,8 +19,12 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Optional
 
-from fastapi import BackgroundTasks, FastAPI, Query
-from fastapi.responses import FileResponse
+from contextlib import asynccontextmanager
+from email.utils import format_datetime
+from xml.sax.saxutils import escape as xml_escape
+
+from fastapi import BackgroundTasks, FastAPI, Query, Request
+from fastapi.responses import FileResponse, Response
 from fastapi.staticfiles import StaticFiles
 
 from . import config
@@ -29,10 +33,20 @@ from .service import NewsService
 ROOT = Path(__file__).resolve().parent.parent
 WEB_DIR = ROOT / "web"
 
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    from . import scheduler  # noqa: PLC0415
+    if scheduler.start_background():
+        print("[api] background scheduler started (schedule.enabled=true)")
+    yield
+    scheduler.stop_background()
+
+
 app = FastAPI(
     title="cyber-ai-news",
     description="Config-driven cybersecurity + AI news aggregator.",
     version="0.1.0",
+    lifespan=lifespan,
 )
 
 # In-memory refresh status (single-process; fine for the dashboard).
@@ -83,6 +97,11 @@ def get_sources():
     return {"sources": config.load_sources(enabled_only=False)}
 
 
+@app.get("/api/sources/health")
+def get_source_health():
+    return _svc().source_health()
+
+
 @app.get("/api/stats")
 def get_stats():
     return _svc().stats()
@@ -111,6 +130,56 @@ def post_refresh(background: BackgroundTasks):
         return {"status": "already_running"}
     background.add_task(_do_refresh)
     return {"status": "started"}
+
+
+@app.get("/feed.xml")
+def rss_feed(
+    request: Request,
+    domain: Optional[str] = Query(None, pattern="^(cyber|ai)$"),
+    category: Optional[str] = None,
+    severity: Optional[str] = Query(None, pattern="^(critical|high|medium|low)$"),
+    region: Optional[str] = Query(None, pattern="^(us|eu|uk|apac)$"),
+    q: Optional[str] = None,
+    limit: int = Query(50, ge=1, le=200),
+):
+    items, _ = _svc().query_page(
+        domain=domain, category=category, severity=severity, region=region,
+        q=q, sort="date", limit=limit, include_duplicates=False,
+    )
+    base = str(request.base_url).rstrip("/")
+    title = "Cyber + AI News"
+    bits = [b for b in (domain, category, severity, region, q) if b]
+    if bits:
+        title += " — " + " · ".join(bits)
+
+    def item_xml(a):
+        cats = "".join(f"<category>{xml_escape(c)}</category>" for c in a.categories)
+        pub = ""
+        if a.published:
+            try:
+                pub = f"<pubDate>{format_datetime(datetime.fromisoformat(a.published))}</pubDate>"
+            except ValueError:
+                pass
+        desc = xml_escape((a.summary or "")[:500])
+        return (
+            f"<item><title>{xml_escape(a.title)}</title>"
+            f"<link>{xml_escape(a.url)}</link>"
+            f"<guid isPermaLink='false'>{a.id}</guid>"
+            f"<source>{xml_escape(a.source)}</source>{cats}{pub}"
+            f"<description>{desc}</description></item>"
+        )
+
+    body = (
+        '<?xml version="1.0" encoding="UTF-8"?>\n'
+        '<rss version="2.0"><channel>'
+        f"<title>{xml_escape(title)}</title>"
+        f"<link>{base}/</link>"
+        "<description>Filtered cybersecurity + AI news</description>"
+        f"<lastBuildDate>{format_datetime(datetime.now(timezone.utc))}</lastBuildDate>"
+        + "".join(item_xml(a) for a in items)
+        + "</channel></rss>"
+    )
+    return Response(content=body, media_type="application/rss+xml")
 
 
 @app.get("/api/health")

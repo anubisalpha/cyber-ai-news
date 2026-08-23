@@ -1,0 +1,137 @@
+"""Email digest builder + sender.
+
+Builds an HTML summary of recent items (grouped into configurable sections) and
+sends it via the existing claude-mail `send()` helper. Fully driven by the
+`digest:` block in settings.yaml.
+
+Sending is opt-in: the CLI previews to a file by default and only emails with
+`--send`. If claude-mail isn't importable, building still works (preview only).
+"""
+from __future__ import annotations
+
+import sys
+from datetime import datetime, timedelta, timezone
+from html import escape
+from pathlib import Path
+
+ROOT = Path(__file__).resolve().parent.parent
+CLAUDE_MAIL = ROOT.parent / "claude-mail"
+
+_SEV_COLOR = {"critical": "#d1242f", "high": "#bc4c00",
+              "medium": "#9a6700", "low": "#6e7781"}
+_DOM_COLOR = {"cyber": "#0969da", "ai": "#8250df", "both": "#1a7f37"}
+
+
+class DigestBuilder:
+    def __init__(self, service):
+        self.svc = service
+        self.cfg = service.settings.get("digest", {}) or {}
+        self.window_hours = self.cfg.get("window_hours", 24)
+        self.max_per_section = self.cfg.get("max_per_section", 8)
+
+    # ---- selection -------------------------------------------------------
+    def _default_sections(self) -> list[dict]:
+        return [
+            {"title": "⚠ Critical & actively exploited", "severity": "critical"},
+            {"title": "AI × Cyber", "category": "intersection"},
+            {"title": "Cybersecurity", "domain": "cyber"},
+            {"title": "AI", "domain": "ai"},
+        ]
+
+    def _section_items(self, section: dict) -> list:
+        filters = {k: v for k, v in section.items() if k != "title"}
+        items, _ = self.svc.store.query(sort="date", limit=100, **filters)
+        cutoff = None
+        if self.window_hours:
+            cutoff = (datetime.now(timezone.utc)
+                      - timedelta(hours=self.window_hours)).isoformat()
+        out = []
+        for a in items:
+            if a.duplicate_of:
+                continue
+            if cutoff and (a.first_seen or "") < cutoff:
+                continue
+            out.append(a)
+            if len(out) >= self.max_per_section:
+                break
+        return out
+
+    # ---- rendering -------------------------------------------------------
+    def subject(self) -> str:
+        tmpl = self.cfg.get("subject", "Cyber+AI News Digest — {date}")
+        return tmpl.format(date=datetime.now().strftime("%d %b %Y"))
+
+    def build(self) -> tuple[str, str, int]:
+        """Return (subject, html, total_items)."""
+        sections = self.cfg.get("sections") or self._default_sections()
+        ov = self.svc.overview(highlights=1)
+        blocks, total = [], 0
+
+        for sec in sections:
+            items = self._section_items(sec)
+            if not items:
+                continue
+            total += len(items)
+            rows = "".join(self._item_html(a) for a in items)
+            blocks.append(
+                f'<h2 style="font-size:15px;margin:22px 0 8px;color:#111">'
+                f'{escape(sec["title"])}</h2>{rows}'
+            )
+
+        window = (f"last {self.window_hours}h" if self.window_hours else "all time")
+        header = (
+            f'<div style="font-size:13px;color:#57606a;margin-bottom:4px">'
+            f'{total} items · {window} · {ov["total"]} in library · '
+            f'{ov["critical_count"]} critical total</div>'
+        )
+        body = header + ("".join(blocks) if blocks
+                         else '<p style="color:#57606a">No new items in this window.</p>')
+        html = self._wrap(body)
+        return self.subject(), html, total
+
+    def _item_html(self, a) -> str:
+        sev = ""
+        if a.severity:
+            sev = (f'<span style="color:{_SEV_COLOR.get(a.severity,"#666")};'
+                   f'font-weight:600;font-size:11px;text-transform:uppercase">'
+                   f' {escape(a.severity)}</span>')
+        dom = (f'<span style="color:{_DOM_COLOR.get(a.domain,"#666")};font-weight:600;'
+               f'font-size:11px">{escape(a.domain)}</span>')
+        date = (a.published or "")[:10]
+        summary = escape((a.summary or "")[:180])
+        return (
+            f'<div style="margin:0 0 12px;padding-bottom:12px;'
+            f'border-bottom:1px solid #eaecef">'
+            f'<a href="{escape(a.url)}" style="color:#0969da;text-decoration:none;'
+            f'font-weight:600;font-size:14px">{escape(a.title)}</a><br>'
+            f'<span style="font-size:12px;color:#57606a">{dom}{sev} · '
+            f'{escape(a.source)} · {date}</span>'
+            f'<div style="font-size:12px;color:#57606a;margin-top:3px">{summary}</div>'
+            f'</div>'
+        )
+
+    def _wrap(self, body: str) -> str:
+        return (
+            '<div style="font-family:-apple-system,Segoe UI,Roboto,Helvetica,Arial,'
+            'sans-serif;max-width:640px;margin:0 auto;padding:20px;color:#111">'
+            '<h1 style="font-size:20px;margin:0 0 2px">Cyber + AI News</h1>'
+            f'{body}'
+            '<div style="margin-top:24px;font-size:11px;color:#8b949e">'
+            'Generated by cyber-ai-news · github.com/anubisalpha/cyber-ai-news</div>'
+            '</div>'
+        )
+
+    # ---- delivery --------------------------------------------------------
+    def send(self, to: str | None = None) -> str:
+        subject, html, _ = self.build()
+        recipient = to or self.cfg.get("recipient")  # None -> claude-mail DEFAULT_TO
+        if str(CLAUDE_MAIL) not in sys.path:
+            sys.path.insert(0, str(CLAUDE_MAIL))
+        try:
+            import send as claude_mail  # noqa: PLC0415
+        except ImportError as exc:
+            raise RuntimeError(
+                f"claude-mail not importable from {CLAUDE_MAIL}: {exc}"
+            ) from exc
+        claude_mail.send(to=recipient, subject=subject, body=html, html=True)
+        return recipient or "(claude-mail default)"

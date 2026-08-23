@@ -53,6 +53,23 @@ def cmd_list(args) -> int:
     return 0
 
 
+def cmd_digest(args) -> int:
+    from .digest import DigestBuilder
+    builder = DigestBuilder(NewsService())
+    if args.send:
+        recipient = builder.send(to=args.to)
+        print(f"Digest emailed to {recipient}.")
+        return 0
+    # preview mode (default): write HTML to a file, don't email
+    subject, html, total = builder.build()
+    out = args.out or "digest_preview.html"
+    from pathlib import Path
+    Path(out).write_text(html, encoding="utf-8")
+    print(f"Subject: {subject}")
+    print(f"{total} items. Preview written to {out} (use --send to email it).")
+    return 0
+
+
 def cmd_categories(args) -> int:
     cfg = config.load_categories()
     for domain, cats in cfg.get("categories", {}).items():
@@ -66,6 +83,20 @@ def cmd_sources(args) -> int:
     for s in config.load_sources(enabled_only=False):
         flag = "on " if s.get("enabled", True) else "off"
         print(f"  [{flag}] {s['type']:8s} {s['domain']:6s} {s['name']}")
+    return 0
+
+
+def cmd_health(args) -> int:
+    h = NewsService().source_health()
+    if not h["sources"]:
+        print("No health data yet — run `refresh` first.")
+        return 0
+    icon = {"ok": "[ ok ]", "empty": "[empty]", "failing": "[FAIL]"}
+    for r in h["sources"]:
+        checked = (r.get("last_checked") or "")[:19].replace("T", " ")
+        extra = f" streak={r['fail_streak']}" if r["fail_streak"] else ""
+        print(f"  {icon[r['status']]} {r['name']:42s} {r['last_count'] or 0:>3} items  {checked}{extra}")
+    print(f"\n{h['problem_count']} problem source(s).")
     return 0
 
 
@@ -85,8 +116,15 @@ def build_parser() -> argparse.ArgumentParser:
     lst.add_argument("--sort", choices=["date", "weight"], default=None)
     lst.set_defaults(func=cmd_list)
 
+    dg = sub.add_parser("digest", help="build (and optionally email) a news digest")
+    dg.add_argument("--send", action="store_true", help="actually email it (default: preview only)")
+    dg.add_argument("--to", help="override recipient")
+    dg.add_argument("--out", help="preview output file (default: digest_preview.html)")
+    dg.set_defaults(func=cmd_digest)
+
     sub.add_parser("categories", help="list the category taxonomy").set_defaults(func=cmd_categories)
     sub.add_parser("sources", help="list configured sources").set_defaults(func=cmd_sources)
+    sub.add_parser("health", help="show per-source fetch health").set_defaults(func=cmd_health)
     return p
 
 

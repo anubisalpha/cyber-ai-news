@@ -45,3 +45,27 @@ output:
   # Default sort for CLI/API listings: "date" or "weight".
   default_sort: date
   default_limit: 25
+
+# Scheduled auto-refresh. Runs in-process when the API starts (if enabled),
+# or standalone via `python -m src.scheduler`.
+schedule:
+  enabled: false
+  interval_minutes: 60
+  refresh_on_start: false
+  # Optional daily digest email. "08:00" (local 24h) sends it once a day; null = off.
+  # NOTE: enabling this sends REAL email autonomously via claude-mail.
+  digest_daily_at: null
+
+# Email digest (sent via the claude-mail project's send()).
+digest:
+  enabled: true
+  recipient: null            # null = claude-mail's DEFAULT_TO
+  subject: "Cyber+AI News Digest — {date}"
+  window_hours: 24           # include items first seen in the last N hours (0 = all)
+  max_per_section: 8
+  # Each section is a named filter (severity/domain/category/region/source/q).
+  sections:
+    - {title: "⚠ Critical & actively exploited", severity: critical}
+    - {title: "AI × Cyber", category: intersection}
+    - {title: "Cybersecurity", domain: cyber}
+    - {title: "AI", domain: ai}

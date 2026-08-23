@@ -30,12 +30,21 @@ Status legend: ⬜ todo · 🔄 in progress · ✅ done
 - ✅ **Tests + pagination** — 28 tests (classify/dedupe/storage/llm/api);
   `/api/articles` now returns `total/offset/limit` + `include_duplicates`.
 
-## Phase 2 — Delivery & automation  *(later)*
+## Phase 2 — Delivery & automation  *(done)*
 
-- ⬜ Email digest via existing `claude-mail` (daily/weekly, filterable).
-- ⬜ Scheduled auto-refresh (Task Scheduler / claudecore-hub).
-- ⬜ RSS/Atom output feed of a filtered view.
-- ⬜ Per-source health monitoring + dashboard indicator.
+- ✅ **Overview dashboard** (primary landing page) — `/api/overview` + two-view web
+  UI (Overview + Browse), KPI tiles, severity/domain/category/source breakdowns,
+  clickable through to filtered Browse.
+- ✅ **Email digest** via `claude-mail` (`src/digest.py`, `cli digest [--send]`) —
+  config-driven sections in `settings.yaml`; previews to HTML, `--send` emails.
+- ✅ **Scheduled auto-refresh** (`src/scheduler.py`) — in-process thread on API
+  startup when `schedule.enabled`, or standalone `python -m src.scheduler`
+  (schtasks is blocked on this box). Optional autonomous daily digest (opt-in).
+- ✅ **RSS/Atom output** — `/feed.xml` filtered RSS 2.0 (round-trips through feedparser).
+- ✅ **Per-source health monitoring** — `source_health` table, recorded each refresh;
+  `cli health`, `/api/sources/health`, and a dashboard header badge.
+
+  SQLite hardened for concurrency (WAL + busy_timeout) since scheduler + API share the DB.
 
 ## Phase 3 — Personalization & UX  *(later)*
 

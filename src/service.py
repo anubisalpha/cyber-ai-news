@@ -43,9 +43,12 @@ class NewsService:
             try:
                 items = fetch_source(src, self.settings)
                 collected.extend(items)
+                # A feed that returns 0 items is "ok" but worth noticing over time.
+                self.store.record_fetch(src["name"], ok=True, count=len(items), error=None)
                 if verbose:
                     print(f"  [ok]   {src['name']}: {len(items)} items")
             except Exception as exc:  # noqa: BLE001 - keep going on a bad feed
+                self.store.record_fetch(src["name"], ok=False, count=0, error=str(exc)[:300])
                 if verbose:
                     print(f"  [fail] {src['name']}: {exc}")
 
@@ -147,6 +150,23 @@ class NewsService:
     # ---- aggregates ------------------------------------------------------
     def stats(self) -> dict:
         return self.store.stats()
+
+    def source_health(self) -> dict:
+        rows = self.store.health()
+        for r in rows:
+            if not r["ok"]:
+                r["status"] = "failing"
+            elif not r["last_count"]:
+                r["status"] = "empty"
+            else:
+                r["status"] = "ok"
+        problems = [r for r in rows if r["status"] != "ok"]
+        return {
+            "sources": rows,
+            "problem_count": len(problems),
+            "failing": [r["name"] for r in rows if r["status"] == "failing"],
+            "empty": [r["name"] for r in rows if r["status"] == "empty"],
+        }
 
     def overview(self, highlights: int = 8) -> dict:
         """A one-call summary for the overview dashboard."""

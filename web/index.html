@@ -117,6 +117,7 @@
     <button id="navBrowse">Browse</button>
   </nav>
   <span class="stats" id="headerStats"></span>
+  <span id="healthBadge" title="source health" style="font-size:12px;cursor:pointer"></span>
   <button id="refreshBtn" class="primary">↻ Refresh feeds</button>
 </header>
 
@@ -376,14 +377,35 @@ $("#refreshBtn").addEventListener("click", async () => {
     if (!h.refresh.running) {
       clearInterval(poll);
       btn.disabled = false; btn.innerHTML = "↻ Refresh feeds";
-      await loadOverview();
+      await loadOverview(); loadHealth();
       if (browseLoaded && !$("#browse").classList.contains("hidden")) loadBrowse();
     }
   }, 1500);
 });
 
+async function loadHealth() {
+  try {
+    const h = await fetch("/api/sources/health").then(r => r.json());
+    const b = $("#healthBadge");
+    if (!h.sources.length) { b.textContent = ""; return; }
+    if (h.problem_count === 0) {
+      b.textContent = "● sources ok";
+      b.style.color = "var(--accent-2)";
+      b.title = `${h.sources.length} sources healthy`;
+    } else {
+      const fail = h.failing.length;
+      b.textContent = `⚠ ${h.problem_count} source${h.problem_count>1?"s":""}`;
+      b.style.color = fail ? "var(--crit)" : "var(--high)";
+      b.title = (fail ? "Failing: " + h.failing.join(", ") + "\n" : "")
+              + (h.empty.length ? "Empty: " + h.empty.join(", ") : "");
+    }
+    b.onclick = () => alert(b.title || "All sources healthy");
+  } catch (e) { /* ignore */ }
+}
+
 /* ---------- init ---------- */
 loadOverview();
+loadHealth();
 </script>
 </body>
 </html>

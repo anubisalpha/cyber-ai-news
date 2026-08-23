@@ -23,9 +23,9 @@ fetch (RSS + JSON APIs) -> classify (keyword rules + optional LLM fallback)
 | `config/sources.yaml` | The source list — RSS feeds & JSON APIs, each toggleable |
 | `config/categories.yaml` | The category taxonomy + keyword rules for auto-tagging |
 | `config/settings.yaml` | Runtime settings (timeouts, age filter, sort defaults) |
-| `src/` | Fetch, classify, LLM fallback, dedupe, storage, orchestrate, CLI, REST API |
-| `web/index.html` | Single-file web dashboard (served by the API) |
-| `tests/` | Tests: classify, dedupe, storage, llm, api (28) |
+| `src/` | Fetch, classify, LLM fallback, dedupe, storage, digest, scheduler, CLI, REST API |
+| `web/index.html` | Single-file web dashboard (Overview + Browse), served by the API |
+| `tests/` | Tests: classify, dedupe, storage, llm, api, phase2 (33) |
 | `data/news.db` | SQLite history of fetched+tagged articles (git-ignored) |
 | `PLAN.md` | Enhancement roadmap + status |
 
@@ -50,9 +50,11 @@ python -m src.cli list --category vulnerabilities
 python -m src.cli list --domain ai --category model_releases
 python -m src.cli list --region uk
 
-# Inspect config
+# Inspect config / status
 python -m src.cli categories     # show the taxonomy
 python -m src.cli sources        # show configured feeds (on/off)
+python -m src.cli health         # per-source fetch health
+python -m src.cli digest         # build a digest preview (--send to email)
 ```
 
 ## REST API + web dashboard
@@ -61,22 +63,63 @@ python -m src.cli sources        # show configured feeds (on/off)
 uvicorn src.api:app --reload --port 8000
 ```
 
-Then open **http://127.0.0.1:8000/** for the dashboard — filter by domain,
-category, severity, region, free-text search, and trigger a live refresh from
-the header button.
+Then open **http://127.0.0.1:8000/**. The dashboard has two views:
+
+- **Overview** (landing) — KPI tiles (total, new-this-week, critical, AI×Cyber),
+  latest highlights, severity/domain breakdowns, top categories & sources, plus
+  "critical" and "AI×Cyber" panels. Everything clicks through to a filtered Browse.
+- **Browse** — the filterable article list (domain, category, severity, region,
+  free-text search, sort, load-more pagination).
+
+The header shows a **source-health badge** and a live **Refresh feeds** button.
 
 API endpoints:
 
 | Method | Path | Purpose |
 |---|---|---|
+| GET | `/api/overview` | One-call summary for the dashboard (KPIs, breakdowns, highlights) |
 | GET | `/api/articles` | Filtered, paginated list. Params: `domain, category, severity, region, source, q, sort, limit, offset, include_duplicates` (returns `total/offset/limit`) |
 | GET | `/api/categories` | The taxonomy |
 | GET | `/api/sources` | Configured sources |
+| GET | `/api/sources/health` | Per-source fetch health (ok / empty / failing) |
 | GET | `/api/stats` | Aggregate counts (by domain / severity / category / source) |
+| GET | `/feed.xml` | Filtered **RSS 2.0** output feed (same filters as `/api/articles`) |
 | POST | `/api/refresh` | Fetch + classify in the background |
 | GET | `/api/health` | Liveness + last-refresh status |
 
 Interactive API docs are auto-generated at `/docs`.
+
+## Delivery & automation
+
+**Email digest** — a configurable HTML summary sent via the `claude-mail` project:
+
+```bash
+python -m src.cli digest              # preview to digest_preview.html (no email)
+python -m src.cli digest --send       # actually email it (to claude-mail DEFAULT_TO)
+python -m src.cli digest --send --to me@example.com
+```
+
+Sections, window, and recipient are config-driven under `digest:` in settings.
+
+**Scheduled auto-refresh** — keep the DB fresh automatically:
+
+```bash
+python -m src.scheduler               # standalone loop (Ctrl+C to stop)
+```
+
+Or set `schedule.enabled: true` and the API starts it in a background thread.
+`schedule.digest_daily_at: "08:00"` also emails the digest once a day (opt-in —
+it sends real email autonomously). `schtasks` is blocked on this machine, so use
+the standalone runner from a Startup-folder script if you want it outside the API.
+
+**Source health** — every refresh records per-source success/count/errors:
+
+```bash
+python -m src.cli health
+```
+
+Sources show as `ok`, `empty` (0 items — e.g. arXiv on weekends), or `failing`
+(with a fail streak). The dashboard surfaces a ⚠ badge when any need attention.
 
 ## History & retention
 

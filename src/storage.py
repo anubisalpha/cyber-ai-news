@@ -29,8 +29,12 @@ class Storage:
     def __init__(self, db_path: Path):
         self.db_path = Path(db_path)
         self.db_path.parent.mkdir(parents=True, exist_ok=True)
-        self.conn = sqlite3.connect(str(self.db_path))
+        self.conn = sqlite3.connect(str(self.db_path), timeout=10)
         self.conn.row_factory = sqlite3.Row
+        # WAL lets readers (the API) proceed during a writer (a refresh);
+        # busy_timeout waits instead of erroring if the db is briefly locked.
+        self.conn.execute("PRAGMA journal_mode=WAL")
+        self.conn.execute("PRAGMA busy_timeout=5000")
         self._init_schema()
 
     def _init_schema(self) -> None:
@@ -58,6 +62,16 @@ class Storage:
             CREATE INDEX IF NOT EXISTS idx_domain     ON articles(domain);
             CREATE INDEX IF NOT EXISTS idx_severity   ON articles(severity);
             CREATE INDEX IF NOT EXISTS idx_first_seen ON articles(first_seen);
+
+            CREATE TABLE IF NOT EXISTS source_health (
+                name          TEXT PRIMARY KEY,
+                last_checked  TEXT,
+                last_success  TEXT,
+                last_count    INTEGER,
+                ok            INTEGER,
+                error         TEXT,
+                fail_streak   INTEGER DEFAULT 0
+            );
             """
         )
         self.conn.commit()
@@ -187,6 +201,35 @@ class Storage:
             sql += f" WHERE {column} IS NOT NULL"
         sql += f" GROUP BY {column}"
         return {k: v for k, v in self.conn.execute(sql) if k is not None}
+
+    # ---- source health ---------------------------------------------------
+    def record_fetch(self, name: str, ok: bool, count: int, error: str | None) -> None:
+        now = datetime.now(timezone.utc).isoformat()
+        row = self.conn.execute(
+            "SELECT fail_streak, last_success FROM source_health WHERE name=?", (name,)
+        ).fetchone()
+        prev_streak = row["fail_streak"] if row else 0
+        prev_success = row["last_success"] if row else None
+        streak = 0 if ok else prev_streak + 1
+        last_success = now if ok else prev_success
+        self.conn.execute(
+            """INSERT INTO source_health
+                 (name, last_checked, last_success, last_count, ok, error, fail_streak)
+               VALUES (?, ?, ?, ?, ?, ?, ?)
+               ON CONFLICT(name) DO UPDATE SET
+                 last_checked=excluded.last_checked,
+                 last_success=excluded.last_success,
+                 last_count=excluded.last_count,
+                 ok=excluded.ok, error=excluded.error, fail_streak=excluded.fail_streak""",
+            (name, now, last_success, count, 1 if ok else 0, error, streak),
+        )
+        self.conn.commit()
+
+    def health(self) -> list[dict]:
+        cur = self.conn.execute(
+            "SELECT * FROM source_health ORDER BY ok ASC, name ASC"
+        )
+        return [dict(r) for r in cur.fetchall()]
 
     # ---- migration / export ---------------------------------------------
     def import_json(self, json_path: Path) -> int:
