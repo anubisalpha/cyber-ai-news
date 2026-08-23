@@ -1,0 +1,91 @@
+# cyber-ai-news
+
+A small, config-driven service that fetches the latest **cybersecurity** and **AI**
+news from RSS feeds and JSON APIs, auto-tags each item into a filterable
+taxonomy, and lets you query it.
+
+Everything you'll want to tune — sources, categories, keywords, filters — lives
+in **`config/`** as editable lists. No feed or category is hard-coded in the code.
+
+## What it does
+
+```
+fetch (RSS + JSON APIs)  ->  classify (keyword rules)  ->  dedupe + store (JSON)  ->  query/filter
+```
+
+## Layout
+
+| Path | Purpose |
+|---|---|
+| `config/sources.yaml` | The source list — RSS feeds & JSON APIs, each toggleable |
+| `config/categories.yaml` | The category taxonomy + keyword rules for auto-tagging |
+| `config/settings.yaml` | Runtime settings (timeouts, age filter, sort defaults) |
+| `src/` | Fetch, classify, orchestrate, CLI |
+| `tests/` | Classifier tests |
+| `data/articles.json` | Local cache of fetched+tagged articles (git-ignored) |
+
+## Setup
+
+```bash
+cd projects/cyber-ai-news
+python -m venv .venv
+.venv/Scripts/activate        # Windows PowerShell: .venv\Scripts\Activate.ps1
+pip install -r requirements.txt
+```
+
+## Usage
+
+```bash
+# Fetch everything from enabled sources, classify, and cache it
+python -m src.cli refresh
+
+# List the latest, with filters
+python -m src.cli list --domain cyber --severity critical --limit 10
+python -m src.cli list --category vulnerabilities
+python -m src.cli list --domain ai --category model_releases
+python -m src.cli list --region uk
+
+# Inspect config
+python -m src.cli categories     # show the taxonomy
+python -m src.cli sources        # show configured feeds (on/off)
+```
+
+## The taxonomy (filterable news types)
+
+**Cybersecurity:** vulnerabilities/CVEs · active exploitation · breaches & leaks ·
+threat actors/APTs · malware & ransomware · patches & advisories · supply chain ·
+cloud & infrastructure · identity & access · regulation & compliance ·
+policy & geopolitics · tools & defense · industry & business · research & conferences
+
+**AI:** model releases · research & papers · safety & alignment · AI security ·
+regulation & governance · industry & business · tooling & infrastructure ·
+applications · ethics & society · open source
+
+**Cross-cutting filters** (orthogonal): severity · region · content type.
+
+**Intersection:** a dedicated AI × Cyber bucket (prompt injection, deepfake fraud,
+AI-powered attacks, LLM security, etc.).
+
+## Extending
+
+- **Add a source:** append an entry to `config/sources.yaml`. RSS works out of the
+  box; a JSON API also needs a small parser in `src/fetch.py` (`JSON_PARSERS`).
+- **Add/tune a category:** edit `config/categories.yaml` — add keywords or a new
+  category block. No code change needed.
+- **Better tagging later:** the classifier is rule-based today. An LLM classifier
+  could be added as an optional pass for fuzzy items without changing the config.
+
+## Tests
+
+```bash
+pip install pytest
+python -m pytest tests/ -v
+```
+
+## Roadmap ideas
+
+- REST API (FastAPI) and/or web dashboard
+- Email / RSS digest output
+- Optional LLM classifier pass for ambiguous items
+- Scheduled refresh (cron / Task Scheduler)
+- Per-source health monitoring

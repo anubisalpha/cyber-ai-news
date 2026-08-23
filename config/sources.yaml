@@ -1,0 +1,159 @@
+# =============================================================================
+# Source list for the cyber + AI news service.
+#
+# Each source has:
+#   name      : human-readable label
+#   type      : "rss" | "json_api"
+#   url       : feed / endpoint URL
+#   domain    : "cyber" | "ai" | "both"   (default tag applied to every item)
+#   enabled   : true/false  (toggle a source without deleting it)
+#   weight    : optional 1-5 trust/priority hint (used for ranking later)
+#
+# Add or remove entries freely — nothing else in the code is hard-coded to a
+# specific feed. Just keep the keys above.
+# =============================================================================
+
+sources:
+  # ---------------------------------------------------------------------------
+  # Cybersecurity — news outlets & blogs (RSS)
+  # ---------------------------------------------------------------------------
+  - name: Krebs on Security
+    type: rss
+    url: https://krebsonsecurity.com/feed/
+    domain: cyber
+    enabled: true
+    weight: 5
+
+  - name: BleepingComputer
+    type: rss
+    url: https://www.bleepingcomputer.com/feed/
+    domain: cyber
+    enabled: true
+    weight: 4
+
+  - name: The Hacker News
+    type: rss
+    url: https://feeds.feedburner.com/TheHackersNews
+    domain: cyber
+    enabled: true
+    weight: 4
+
+  - name: The Record (Recorded Future)
+    type: rss
+    url: https://therecord.media/feed/
+    domain: cyber
+    enabled: true
+    weight: 4
+
+  - name: Dark Reading
+    type: rss
+    url: https://www.darkreading.com/rss.xml
+    domain: cyber
+    enabled: true
+    weight: 3
+
+  - name: SecurityWeek
+    type: rss
+    url: https://www.securityweek.com/feed/
+    domain: cyber
+    enabled: true
+    weight: 3
+
+  - name: Schneier on Security
+    type: rss
+    url: https://www.schneier.com/feed/atom/
+    domain: cyber
+    enabled: true
+    weight: 4
+
+  # ---------------------------------------------------------------------------
+  # Cybersecurity — official advisories (RSS + JSON APIs)
+  # ---------------------------------------------------------------------------
+  - name: CISA Advisories
+    type: rss
+    url: https://www.cisa.gov/cybersecurity-advisories/all.xml
+    domain: cyber
+    enabled: true
+    weight: 5
+
+  - name: CISA Known Exploited Vulnerabilities (KEV)
+    type: json_api
+    url: https://www.cisa.gov/sites/default/files/feeds/known_exploited_vulnerabilities.json
+    domain: cyber
+    enabled: true
+    weight: 5
+    parser: cisa_kev        # maps to a named parser in fetch.py
+
+  - name: NVD Recent CVEs
+    type: json_api
+    url: https://services.nvd.nist.gov/rest/json/cves/2.0?resultsPerPage=50
+    domain: cyber
+    enabled: true
+    weight: 5
+    parser: nvd_cve
+
+  - name: US-CERT / NCAS Alerts
+    type: rss
+    url: https://www.cisa.gov/news-events/cybersecurity-advisories/all.xml
+    domain: cyber
+    enabled: false          # duplicate-ish of CISA Advisories; off by default
+    weight: 4
+
+  # ---------------------------------------------------------------------------
+  # AI — news, research & industry (RSS)
+  # ---------------------------------------------------------------------------
+  - name: arXiv cs.AI (latest)
+    type: rss
+    url: http://export.arxiv.org/rss/cs.AI
+    domain: ai
+    enabled: true
+    weight: 3
+
+  - name: arXiv cs.LG (machine learning)
+    type: rss
+    url: http://export.arxiv.org/rss/cs.LG
+    domain: ai
+    enabled: true
+    weight: 3
+
+  - name: arXiv cs.CR (crypto & security)
+    type: rss
+    url: http://export.arxiv.org/rss/cs.CR
+    domain: both
+    enabled: true
+    weight: 3
+
+  - name: MIT Technology Review — AI
+    type: rss
+    url: https://www.technologyreview.com/topic/artificial-intelligence/feed/
+    domain: ai
+    enabled: true
+    weight: 4
+
+  - name: VentureBeat AI
+    type: rss
+    url: https://venturebeat.com/category/ai/feed/
+    domain: ai
+    enabled: true
+    weight: 3
+
+  - name: Google AI Blog
+    type: rss
+    url: https://blog.google/technology/ai/rss/
+    domain: ai
+    enabled: true
+    weight: 3
+
+  - name: Hugging Face Blog
+    type: rss
+    url: https://huggingface.co/blog/feed.xml
+    domain: ai
+    enabled: true
+    weight: 3
+
+  - name: The Verge — AI
+    type: rss
+    url: https://www.theverge.com/rss/ai-artificial-intelligence/index.xml
+    domain: ai
+    enabled: true
+    weight: 2

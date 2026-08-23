@@ -1,0 +1,154 @@
+# =============================================================================
+# Category taxonomy + keyword rules for the cyber + AI news service.
+#
+# Two things live here:
+#   1. The category definitions (the filterable "news types").
+#   2. Keyword rules used to auto-tag each article.
+#
+# Tagging is rule-based (fast, free, deterministic). An article can match
+# multiple categories. Matching is case-insensitive, whole-word-ish (see
+# classify.py). Add keywords freely to tune precision/recall.
+# =============================================================================
+
+# Which domain each category belongs to (for grouping in the UI/filters).
+categories:
+
+  # ---- Cybersecurity ------------------------------------------------------
+  cyber:
+    vulnerabilities:
+      label: Vulnerabilities & CVEs
+      keywords: [cve, vulnerability, zero-day, 0-day, rce, buffer overflow,
+                 privilege escalation, cvss, poc, proof of concept, flaw, bug bounty]
+    active_exploitation:
+      label: Active Exploitation
+      keywords: [exploited in the wild, actively exploited, kev, in-the-wild,
+                 mass exploitation, under attack, weaponized]
+    breaches:
+      label: Breaches & Leaks
+      keywords: [data breach, leaked, leak, exposed, stolen data, database exposed,
+                 credential dump, records exposed, hacked]
+    threat_actors:
+      label: Threat Actors & APTs
+      keywords: [apt, threat actor, nation-state, lazarus, fancy bear, cozy bear,
+                 sandworm, attribution, cybercrime gang, hacking group]
+    malware:
+      label: Malware & Ransomware
+      keywords: [ransomware, malware, trojan, botnet, loader, infostealer,
+                 backdoor, rootkit, wiper, raas, lockbit, alphv, cl0p]
+    patches:
+      label: Patches & Advisories
+      keywords: [patch tuesday, security update, hotfix, advisory, patched,
+                 fixes, end of life, eol, out-of-band]
+    supply_chain:
+      label: Supply Chain
+      keywords: [supply chain, npm package, pypi, dependency, typosquat,
+                 malicious package, compromised package, sbom]
+    cloud:
+      label: Cloud & Infrastructure
+      keywords: [misconfiguration, s3 bucket, kubernetes, container, iam,
+                 cloud security, azure, aws, gcp, saas security]
+    identity:
+      label: Identity & Access
+      keywords: [phishing, mfa bypass, credential stuffing, session hijack,
+                 password, sso, oauth abuse, account takeover, social engineering]
+    regulation:
+      label: Regulation & Compliance
+      keywords: [gdpr, nis2, dora, sec rule, compliance, fine, lawsuit,
+                 data protection, regulator, ico, privacy law]
+    policy:
+      label: Policy & Geopolitics
+      keywords: [sanction, cyber warfare, government, national security,
+                 cyber strategy, executive order, espionage, state-sponsored]
+    defense:
+      label: Tools & Defense
+      keywords: [detection, threat hunting, blue team, siem, edr, xdr,
+                 open-source tool, security tool, mitigation, hardening]
+    industry:
+      label: Industry & Business
+      keywords: [funding round, acquires, acquisition, merger, layoffs,
+                 raises, valuation, ipo, startup]
+    research:
+      label: Research & Conferences
+      keywords: [black hat, def con, defcon, research paper, whitepaper,
+                 new technique, disclosed, presented at]
+
+  # ---- AI -----------------------------------------------------------------
+  ai:
+    model_releases:
+      label: Model Releases
+      keywords: [releases, launches, new model, gpt-, claude, gemini, llama,
+                 mistral, open-weight, benchmark, state-of-the-art, sota]
+    research:
+      label: Research & Papers
+      keywords: [arxiv, paper, novel architecture, transformer, fine-tuning,
+                 pretraining, scaling law, we propose, we introduce]
+    safety_alignment:
+      label: AI Safety & Alignment
+      keywords: [alignment, ai safety, interpretability, red-team, red teaming,
+                 rlhf, guardrails, existential risk, superalignment]
+    ai_security:
+      label: AI Security
+      keywords: [prompt injection, jailbreak, adversarial, data poisoning,
+                 model theft, model extraction, llm security, evasion attack]
+    governance:
+      label: Regulation & Governance
+      keywords: [eu ai act, ai regulation, executive order, ai governance,
+                 liability, standards, nist ai, oversight]
+    industry:
+      label: Industry & Business
+      keywords: [funding, acquires, partnership, product launch, raises,
+                 valuation, openai, anthropic, deepmind, nvidia deal]
+    tooling:
+      label: Tooling & Infrastructure
+      keywords: [framework, gpu, chip, tpu, mlops, agent framework, inference,
+                 vector database, orchestration, langchain]
+    applications:
+      label: Applications & Use Cases
+      keywords: [deployed, use case, in healthcare, in finance, coding assistant,
+                 copilot, automation, real-world]
+    ethics:
+      label: Ethics & Society
+      keywords: [bias, misinformation, deepfake, copyright, job displacement,
+                 labor, discrimination, hallucination, disinformation]
+    open_source:
+      label: Open Source
+      keywords: [open source, open-source, oss, weights released, apache 2.0,
+                 mit license, community model]
+
+  # ---- Cyber x AI intersection (your niche) -------------------------------
+  intersection:
+    ai_security:
+      label: AI x Cyber (intersection)
+      keywords: [ai-powered attack, llm security, prompt injection, deepfake fraud,
+                 autonomous pentest, ai in soc, ai malware, weaponized ai,
+                 adversarial machine learning, model supply chain]
+
+# =============================================================================
+# Cross-cutting filters (orthogonal tags — an article can have all of these)
+# =============================================================================
+cross_cutting:
+
+  severity:
+    # Applied mainly to cyber items. First match wins (ordered high -> low).
+    critical:
+      keywords: [critical, actively exploited, zero-day, 0-day, emergency, cvss 9,
+                 cvss 10, wormable]
+    high:
+      keywords: [high severity, rce, remote code execution, privilege escalation,
+                 cvss 8, cvss 7]
+    medium:
+      keywords: [medium severity, denial of service, information disclosure]
+    low:
+      keywords: [low severity, minor, informational]
+
+  region:
+    us:     {keywords: [united states, u.s., cisa, fbi, nsa, sec ]}
+    eu:     {keywords: [european union, eu, gdpr, enisa, europe]}
+    uk:     {keywords: [united kingdom, uk, ncsc, ico, britain]}
+    apac:   {keywords: [china, japan, india, apac, asia-pacific, south korea]}
+
+  content_type:
+    advisory:  {keywords: [advisory, alert, bulletin]}
+    research:  {keywords: [paper, research, study, whitepaper]}
+    breaking:  {keywords: [breaking, just in, developing]}
+    opinion:   {keywords: [opinion, analysis, commentary, op-ed]}

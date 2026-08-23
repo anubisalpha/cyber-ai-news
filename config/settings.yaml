@@ -1,0 +1,26 @@
+# General runtime settings for the news service.
+
+fetch:
+  timeout_seconds: 20
+  user_agent: "cyber-ai-news/0.1 (+https://github.com/anubisalpha)"
+  max_items_per_source: 50
+  # Only keep articles newer than this many days (0 = no limit).
+  max_age_days: 14
+
+classify:
+  # Fields searched for keyword matches, in priority order.
+  search_fields: [title, summary]
+  # An article with zero category matches gets this tag instead of being dropped.
+  fallback_category: uncategorized
+  min_keyword_length: 3
+
+storage:
+  # Where fetched+classified articles are cached as JSON.
+  data_file: data/articles.json
+  # De-dupe window: drop items whose URL was already seen.
+  dedupe: true
+
+output:
+  # Default sort for CLI/API listings: "date" or "weight".
+  default_sort: date
+  default_limit: 25
