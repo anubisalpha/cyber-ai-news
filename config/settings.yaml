@@ -4,8 +4,9 @@ fetch:
   timeout_seconds: 20
   user_agent: "cyber-ai-news/0.1 (+https://github.com/anubisalpha)"
   max_items_per_source: 50
-  # Only keep articles newer than this many days (0 = no limit).
-  max_age_days: 14
+  # Ignore incoming items whose PUBLISH date is older than this many days.
+  # 0 = ingest whatever the feeds return (keeps history unlimited).
+  max_age_days: 0
 
 classify:
   # Fields searched for keyword matches, in priority order.
@@ -19,6 +20,10 @@ storage:
   data_file: data/articles.json
   # De-dupe window: drop items whose URL was already seen.
   dedupe: true
+  # History retention. 0 = unlimited (keep every fetch forever).
+  # Set to a number of days to trim fetches first seen longer ago than that
+  # on each refresh (e.g. 90 keeps the last ~3 months of history).
+  history_retention_days: 0
 
 output:
   # Default sort for CLI/API listings: "date" or "weight".

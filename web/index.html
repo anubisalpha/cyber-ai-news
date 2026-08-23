@@ -1,0 +1,251 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Cyber + AI News</title>
+<style>
+  :root {
+    --bg: #0d1117; --panel: #161b22; --panel-2: #1c2330; --border: #2a3140;
+    --text: #e6edf3; --muted: #8b949e; --accent: #4f9cff; --accent-2: #7ee787;
+    --crit: #ff6b6b; --high: #ffa657; --med: #f2cc60; --low: #8b949e;
+    --cyber: #4f9cff; --ai: #bc8cff; --both: #7ee787;
+  }
+  @media (prefers-color-scheme: light) {
+    :root {
+      --bg: #f6f8fa; --panel: #ffffff; --panel-2: #f0f3f6; --border: #d0d7de;
+      --text: #1f2328; --muted: #656d76; --accent: #0969da;
+    }
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+         background: var(--bg); color: var(--text); }
+  header { display: flex; align-items: center; gap: 16px; padding: 14px 20px;
+           border-bottom: 1px solid var(--border); background: var(--panel);
+           position: sticky; top: 0; z-index: 10; }
+  header h1 { font-size: 18px; margin: 0; letter-spacing: .3px; }
+  header h1 .dot { color: var(--accent); }
+  header .stats { color: var(--muted); font-size: 13px; margin-left: auto; }
+  button { font: inherit; cursor: pointer; border-radius: 6px; border: 1px solid var(--border);
+           background: var(--panel-2); color: var(--text); padding: 7px 12px; }
+  button.primary { background: var(--accent); color: #fff; border-color: var(--accent); }
+  button:disabled { opacity: .5; cursor: default; }
+  .layout { display: grid; grid-template-columns: 260px 1fr; gap: 0; }
+  @media (max-width: 820px) { .layout { grid-template-columns: 1fr; } aside { border-right: none !important; } }
+  aside { border-right: 1px solid var(--border); padding: 18px; min-height: calc(100vh - 56px);
+          background: var(--panel); }
+  aside h2 { font-size: 11px; text-transform: uppercase; letter-spacing: .8px; color: var(--muted);
+             margin: 18px 0 8px; }
+  aside h2:first-child { margin-top: 0; }
+  .field { display: block; width: 100%; margin-bottom: 8px; }
+  select, input[type=search] { width: 100%; padding: 8px 10px; border-radius: 6px;
+         border: 1px solid var(--border); background: var(--panel-2); color: var(--text); font: inherit; }
+  .chips { display: flex; flex-wrap: wrap; gap: 6px; }
+  .chip { padding: 5px 10px; border-radius: 999px; border: 1px solid var(--border);
+          background: var(--panel-2); color: var(--muted); font-size: 12px; cursor: pointer; }
+  .chip.active { background: var(--accent); color: #fff; border-color: var(--accent); }
+  main { padding: 18px 20px; }
+  .toolbar { display: flex; align-items: center; gap: 10px; margin-bottom: 14px; flex-wrap: wrap; }
+  .toolbar .count { color: var(--muted); font-size: 13px; }
+  .card { background: var(--panel); border: 1px solid var(--border); border-radius: 10px;
+          padding: 14px 16px; margin-bottom: 10px; transition: border-color .15s; }
+  .card:hover { border-color: var(--accent); }
+  .card a.title { color: var(--text); text-decoration: none; font-weight: 600; font-size: 15px; line-height: 1.35; }
+  .card a.title:hover { color: var(--accent); }
+  .meta { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin-top: 8px;
+          font-size: 12px; color: var(--muted); }
+  .badge { padding: 2px 8px; border-radius: 999px; font-size: 11px; font-weight: 600; }
+  .badge.dom-cyber { background: color-mix(in srgb, var(--cyber) 20%, transparent); color: var(--cyber); }
+  .badge.dom-ai { background: color-mix(in srgb, var(--ai) 20%, transparent); color: var(--ai); }
+  .badge.dom-both { background: color-mix(in srgb, var(--both) 20%, transparent); color: var(--both); }
+  .sev { font-weight: 700; text-transform: uppercase; font-size: 10px; letter-spacing: .5px; }
+  .sev.critical { color: var(--crit); } .sev.high { color: var(--high); }
+  .sev.medium { color: var(--med); } .sev.low { color: var(--low); }
+  .tags { margin-top: 8px; display: flex; flex-wrap: wrap; gap: 5px; }
+  .tag { font-size: 11px; color: var(--muted); background: var(--panel-2);
+         border: 1px solid var(--border); border-radius: 5px; padding: 2px 7px; cursor: pointer; }
+  .tag:hover { color: var(--accent); border-color: var(--accent); }
+  .summary { color: var(--muted); font-size: 13px; line-height: 1.5; margin-top: 8px; }
+  .empty { color: var(--muted); text-align: center; padding: 60px 20px; }
+  .spin { display: inline-block; width: 13px; height: 13px; border: 2px solid var(--muted);
+          border-top-color: transparent; border-radius: 50%; animation: s 0.7s linear infinite; vertical-align: -2px; }
+  @keyframes s { to { transform: rotate(360deg); } }
+</style>
+</head>
+<body>
+<header>
+  <h1><span class="dot">●</span> Cyber<span style="color:var(--muted)">+</span>AI News</h1>
+  <span class="stats" id="headerStats"></span>
+  <button id="refreshBtn" class="primary">↻ Refresh feeds</button>
+</header>
+
+<div class="layout">
+  <aside>
+    <h2>Search</h2>
+    <input type="search" id="search" class="field" placeholder="keyword…" />
+
+    <h2>Domain</h2>
+    <div class="chips" id="domainChips">
+      <span class="chip active" data-domain="">All</span>
+      <span class="chip" data-domain="cyber">Cyber</span>
+      <span class="chip" data-domain="ai">AI</span>
+    </div>
+
+    <h2>Category</h2>
+    <select id="category" class="field"><option value="">All categories</option></select>
+
+    <h2>Severity</h2>
+    <div class="chips" id="sevChips">
+      <span class="chip active" data-sev="">Any</span>
+      <span class="chip" data-sev="critical">Critical</span>
+      <span class="chip" data-sev="high">High</span>
+      <span class="chip" data-sev="medium">Medium</span>
+      <span class="chip" data-sev="low">Low</span>
+    </div>
+
+    <h2>Region</h2>
+    <select id="region" class="field">
+      <option value="">Any region</option>
+      <option value="us">US</option><option value="eu">EU</option>
+      <option value="uk">UK</option><option value="apac">APAC</option>
+    </select>
+
+    <h2>Sort</h2>
+    <select id="sort" class="field">
+      <option value="date">Newest first</option>
+      <option value="weight">Source weight</option>
+    </select>
+  </aside>
+
+  <main>
+    <div class="toolbar">
+      <span class="count" id="count">Loading…</span>
+    </div>
+    <div id="list"></div>
+  </main>
+</div>
+
+<script>
+const $ = (s) => document.querySelector(s);
+const state = { domain: "", category: "", severity: "", region: "", q: "", sort: "date" };
+let searchTimer = null;
+
+async function loadCategories() {
+  const data = await fetch("/api/categories").then(r => r.json());
+  const sel = $("#category");
+  const cats = data.categories || {};
+  for (const [domain, group] of Object.entries(cats)) {
+    const og = document.createElement("optgroup");
+    og.label = domain.toUpperCase();
+    for (const [key, spec] of Object.entries(group)) {
+      const o = document.createElement("option");
+      o.value = key;                       // matches substring of "domain.key"
+      o.textContent = spec.label || key;
+      og.appendChild(o);
+    }
+    sel.appendChild(og);
+  }
+}
+
+async function loadStats() {
+  const s = await fetch("/api/stats").then(r => r.json());
+  const parts = [`${s.total} articles`];
+  if (s.by_domain.cyber) parts.push(`${s.by_domain.cyber} cyber`);
+  if (s.by_domain.ai) parts.push(`${s.by_domain.ai} AI`);
+  if (s.by_severity.critical) parts.push(`${s.by_severity.critical} critical`);
+  $("#headerStats").textContent = parts.join(" · ");
+}
+
+function fmtDate(iso) {
+  if (!iso) return "";
+  try { return new Date(iso).toLocaleDateString(undefined, {month:"short", day:"numeric"}); }
+  catch { return iso.slice(0,10); }
+}
+
+function card(a) {
+  const el = document.createElement("div");
+  el.className = "card";
+  const sev = a.severity ? `<span class="sev ${a.severity}">${a.severity}</span>` : "";
+  const tags = (a.categories || []).map(c =>
+    `<span class="tag" data-cat="${c.split('.').pop()}">${c}</span>`).join("");
+  const regions = (a.regions || []).map(r => `<span class="badge">${r.toUpperCase()}</span>`).join(" ");
+  el.innerHTML = `
+    <a class="title" href="${a.url}" target="_blank" rel="noopener">${escapeHtml(a.title)}</a>
+    <div class="meta">
+      <span class="badge dom-${a.domain}">${a.domain}</span>
+      ${sev}
+      <span>${escapeHtml(a.source)}</span>
+      <span>·</span><span>${fmtDate(a.published)}</span>
+      ${regions}
+    </div>
+    ${a.summary ? `<div class="summary">${escapeHtml(a.summary.slice(0,240))}${a.summary.length>240?"…":""}</div>` : ""}
+    <div class="tags">${tags}</div>`;
+  el.querySelectorAll(".tag").forEach(t => t.addEventListener("click", () => {
+    $("#category").value = t.dataset.cat; state.category = t.dataset.cat; load();
+  }));
+  return el;
+}
+
+function escapeHtml(s) {
+  return (s || "").replace(/[&<>"']/g, c =>
+    ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+}
+
+async function load() {
+  const p = new URLSearchParams();
+  for (const [k, v] of Object.entries(state)) if (v) p.set(k, v);
+  p.set("limit", "200");
+  $("#count").textContent = "Loading…";
+  const data = await fetch("/api/articles?" + p).then(r => r.json());
+  const list = $("#list");
+  list.innerHTML = "";
+  if (!data.articles.length) {
+    list.innerHTML = `<div class="empty">No articles match these filters.<br>Try Refresh feeds or clear filters.</div>`;
+  } else {
+    data.articles.forEach(a => list.appendChild(card(a)));
+  }
+  $("#count").textContent = `${data.count} article${data.count === 1 ? "" : "s"}`;
+}
+
+// --- wire up controls ---
+$("#domainChips").addEventListener("click", e => {
+  if (!e.target.dataset.domain && e.target.dataset.domain !== "") return;
+  if (e.target.classList.contains("chip")) {
+    $("#domainChips").querySelectorAll(".chip").forEach(c => c.classList.remove("active"));
+    e.target.classList.add("active"); state.domain = e.target.dataset.domain; load();
+  }
+});
+$("#sevChips").addEventListener("click", e => {
+  if (e.target.classList.contains("chip")) {
+    $("#sevChips").querySelectorAll(".chip").forEach(c => c.classList.remove("active"));
+    e.target.classList.add("active"); state.severity = e.target.dataset.sev; load();
+  }
+});
+$("#category").addEventListener("change", e => { state.category = e.target.value; load(); });
+$("#region").addEventListener("change", e => { state.region = e.target.value; load(); });
+$("#sort").addEventListener("change", e => { state.sort = e.target.value; load(); });
+$("#search").addEventListener("input", e => {
+  clearTimeout(searchTimer);
+  searchTimer = setTimeout(() => { state.q = e.target.value.trim(); load(); }, 300);
+});
+
+$("#refreshBtn").addEventListener("click", async () => {
+  const btn = $("#refreshBtn");
+  btn.disabled = true; btn.innerHTML = '<span class="spin"></span> Refreshing…';
+  await fetch("/api/refresh", { method: "POST" });
+  // poll health until refresh finishes
+  const poll = setInterval(async () => {
+    const h = await fetch("/api/health").then(r => r.json());
+    if (!h.refresh.running) {
+      clearInterval(poll);
+      btn.disabled = false; btn.innerHTML = "↻ Refresh feeds";
+      await loadStats(); await load();
+    }
+  }, 1500);
+});
+
+// --- init ---
+(async () => { await loadCategories(); await loadStats(); await load(); })();
+</script>
+</body>
+</html>

@@ -11,6 +11,8 @@ in **`config/`** as editable lists. No feed or category is hard-coded in the cod
 
 ```
 fetch (RSS + JSON APIs)  ->  classify (keyword rules)  ->  dedupe + store (JSON)  ->  query/filter
+                                                                                      |
+                                                                    CLI  ·  REST API  ·  web dashboard
 ```
 
 ## Layout
@@ -20,9 +22,10 @@ fetch (RSS + JSON APIs)  ->  classify (keyword rules)  ->  dedupe + store (JSON)
 | `config/sources.yaml` | The source list — RSS feeds & JSON APIs, each toggleable |
 | `config/categories.yaml` | The category taxonomy + keyword rules for auto-tagging |
 | `config/settings.yaml` | Runtime settings (timeouts, age filter, sort defaults) |
-| `src/` | Fetch, classify, orchestrate, CLI |
+| `src/` | Fetch, classify, orchestrate, CLI, REST API |
+| `web/index.html` | Single-file web dashboard (served by the API) |
 | `tests/` | Classifier tests |
-| `data/articles.json` | Local cache of fetched+tagged articles (git-ignored) |
+| `data/articles.json` | Local cache / history of fetched+tagged articles (git-ignored) |
 
 ## Setup
 
@@ -49,6 +52,39 @@ python -m src.cli list --region uk
 python -m src.cli categories     # show the taxonomy
 python -m src.cli sources        # show configured feeds (on/off)
 ```
+
+## REST API + web dashboard
+
+```bash
+uvicorn src.api:app --reload --port 8000
+```
+
+Then open **http://127.0.0.1:8000/** for the dashboard — filter by domain,
+category, severity, region, free-text search, and trigger a live refresh from
+the header button.
+
+API endpoints:
+
+| Method | Path | Purpose |
+|---|---|---|
+| GET | `/api/articles` | Filtered list. Params: `domain, category, severity, region, source, q, sort, limit` |
+| GET | `/api/categories` | The taxonomy |
+| GET | `/api/sources` | Configured sources |
+| GET | `/api/stats` | Aggregate counts (by domain / severity / category / source) |
+| POST | `/api/refresh` | Fetch + classify in the background |
+| GET | `/api/health` | Liveness + last-refresh status |
+
+Interactive API docs are auto-generated at `/docs`.
+
+## History & retention
+
+Every refresh **accumulates** into the local history (`data/articles.json`),
+de-duplicated by URL. Each article carries a `first_seen` timestamp.
+
+- `fetch.max_age_days: 0` — ingest whatever the feeds return (no publish-date cutoff).
+- `storage.history_retention_days: 0` — **unlimited history** (default). Set to a
+  number of days to trim items first seen longer ago than that on each refresh
+  (e.g. `90` keeps ~3 months).
 
 ## The taxonomy (filterable news types)
 
@@ -84,7 +120,7 @@ python -m pytest tests/ -v
 
 ## Roadmap ideas
 
-- REST API (FastAPI) and/or web dashboard
+- ~~REST API (FastAPI) + web dashboard~~ ✅ done
 - Email / RSS digest output
 - Optional LLM classifier pass for ambiguous items
 - Scheduled refresh (cron / Task Scheduler)

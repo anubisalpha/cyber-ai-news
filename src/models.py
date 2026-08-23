@@ -16,7 +16,8 @@ class Article:
     source: str
     domain: str                     # cyber | ai | both
     summary: str = ""
-    published: Optional[str] = None  # ISO-8601 string, UTC
+    published: Optional[str] = None   # ISO-8601 string, UTC (from the source)
+    first_seen: Optional[str] = None  # ISO-8601 string, UTC (when we first fetched it)
     weight: int = 3
 
     # Tags assigned by the classifier.
