@@ -9,13 +9,8 @@ Sending is opt-in: the CLI previews to a file by default and only emails with
 """
 from __future__ import annotations
 
-import sys
 from datetime import datetime, timedelta, timezone
 from html import escape
-from pathlib import Path
-
-ROOT = Path(__file__).resolve().parent.parent
-CLAUDE_MAIL = ROOT.parent / "claude-mail"
 
 _SEV_COLOR = {"critical": "#d1242f", "high": "#bc4c00",
               "medium": "#9a6700", "low": "#6e7781"}
@@ -124,14 +119,6 @@ class DigestBuilder:
     # ---- delivery --------------------------------------------------------
     def send(self, to: str | None = None) -> str:
         subject, html, _ = self.build()
-        recipient = to or self.cfg.get("recipient")  # None -> claude-mail DEFAULT_TO
-        if str(CLAUDE_MAIL) not in sys.path:
-            sys.path.insert(0, str(CLAUDE_MAIL))
-        try:
-            import send as claude_mail  # noqa: PLC0415
-        except ImportError as exc:
-            raise RuntimeError(
-                f"claude-mail not importable from {CLAUDE_MAIL}: {exc}"
-            ) from exc
-        claude_mail.send(to=recipient, subject=subject, body=html, html=True)
-        return recipient or "(claude-mail default)"
+        recipient = to or self.cfg.get("recipient")  # None -> mailer default
+        from .mailer import send_email  # noqa: PLC0415
+        return send_email(recipient, subject, html)

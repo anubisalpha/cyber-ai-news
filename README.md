@@ -185,9 +185,15 @@ docker compose logs -f news   # follow logs
 docker compose down           # stop (SQLite history persists in the named volume)
 ```
 
-The image installs only the core requirements (~237MB). The optional LLM classifier
-isn't baked in — install `requirements-llm.txt` inside the container if you want it.
-Email digests/alerts need the sibling `claude-mail` project and aren't containerised.
+The image installs only the core requirements (~237MB) and `compose.yml` ships with
+container hardening (non-root, read-only rootfs, dropped capabilities, resource limits).
+Email is self-contained in the container via `SMTP_*` env vars (see `.env.example`);
+set `MAIL_TO` and it sends digests/alerts directly — no dependency on other projects.
+
+**Deploying to a server (Proxmox LXC + Docker):** see **[DEPLOY.md](DEPLOY.md)**, which
+includes step-by-step setup and a **security guidance** section. Key point: the API has
+**no built-in auth** (and `POST /api/refresh` is open) — don't expose it to the public
+internet; keep it on your LAN/VPN or behind a reverse proxy with TLS + auth.
 
 ## Classification (keywords + optional LLM fallback)
 

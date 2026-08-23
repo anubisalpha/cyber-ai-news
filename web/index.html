@@ -215,6 +215,10 @@ function escapeHtml(s) {
   return (s || "").replace(/[&<>"']/g, c =>
     ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
 }
+// Only allow http(s) links — a hostile feed must not inject javascript:/data: URLs.
+function safeUrl(u) {
+  return (typeof u === "string" && /^https?:\/\//i.test(u)) ? escapeHtml(u) : "#";
+}
 function fmtDate(iso) {
   if (!iso) return "";
   try {
@@ -295,7 +299,7 @@ function kpi(cls, n, label, filter) {
 }
 function hl(a) {
   const sev = a.severity ? `<span class="sev ${a.severity}">${a.severity}</span>` : "";
-  return `<a class="hl" href="${a.url}" target="_blank" rel="noopener">
+  return `<a class="hl" href="${safeUrl(a.url)}" target="_blank" rel="noopener">
     <div class="t">${escapeHtml(a.title)}</div>
     <div class="m"><span class="badge dom-${a.domain}">${a.domain}</span>${sev}
       <span>${escapeHtml(a.source)}</span><span>·</span><span>${fmtDate(a.published)}</span></div></a>`;
@@ -362,7 +366,7 @@ function acard(a) {
   const saved = savedSet.has(a.id);
   el.innerHTML = `
     <button class="star ${saved?"on":""}" title="bookmark">${saved?"★":"☆"}</button>
-    <a class="title" href="${a.url}" target="_blank" rel="noopener">${escapeHtml(a.title)}</a>
+    <a class="title" href="${safeUrl(a.url)}" target="_blank" rel="noopener">${escapeHtml(a.title)}</a>
     <div class="meta"><span class="badge dom-${a.domain}">${a.domain}</span>${sev}
       <span>${escapeHtml(a.source)}</span><span>·</span>
       <span title="${fullDate(a.published)}">${fmtDate(a.published)}</span>${dup}</div>

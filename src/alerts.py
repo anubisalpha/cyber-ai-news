@@ -17,15 +17,8 @@ finds new matches — opt in deliberately.
 """
 from __future__ import annotations
 
-import sys
 from datetime import datetime
 from html import escape
-from pathlib import Path
-
-from . import config
-
-ROOT = Path(__file__).resolve().parent.parent
-CLAUDE_MAIL = ROOT.parent / "claude-mail"
 
 
 class AlertEngine:
@@ -108,8 +101,5 @@ class AlertEngine:
             + '<div style="margin-top:20px;font-size:11px;color:#8b949e">'
             'cyber-ai-news · github.com/anubisalpha/cyber-ai-news</div></div>'
         )
-        recipient = self.cfg.get("recipient")
-        if str(CLAUDE_MAIL) not in sys.path:
-            sys.path.insert(0, str(CLAUDE_MAIL))
-        import send as claude_mail  # noqa: PLC0415
-        claude_mail.send(to=recipient, subject=subject, body=html, html=True)
+        from .mailer import send_email  # noqa: PLC0415
+        send_email(self.cfg.get("recipient"), subject, html)

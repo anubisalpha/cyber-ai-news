@@ -61,7 +61,18 @@ Status legend: ⬜ todo · 🔄 in progress · ✅ done
   (named volume for SQLite history). Built + run-tested (fetched 377 in-container).
   Optional LLM dep split into `requirements-llm.txt` to keep the image lean (237MB).
 
-## Done: Phases 1–3 all complete. Possible Phase 4 ideas
+## Deployment (Proxmox LXC + Docker)
+
+- ✅ Self-contained SMTP (`src/mailer.py`) — email via `SMTP_*` env vars, with a
+  local claude-mail fallback; `digest`/`alerts` no longer depend on a sibling project.
+- ✅ `compose.yml` hardened (read-only rootfs, `no-new-privileges`, `cap_drop: ALL`,
+  mem/pids limits, config bind-mount, `.env` env_file); `.env.example`.
+- ✅ `DEPLOY.md` — Proxmox unprivileged-LXC + Docker guide **with a security section**.
+- ✅ Security fix: dashboard now sanitises feed link URLs (blocks `javascript:`/`data:`
+  href XSS); feed text already escaped; SQL parameterised.
+- ✅ Test coverage raised 56% → 66% (fetch 23→91%, service 37→66%); 52 tests.
+
+## Possible Phase 4 ideas
 
 - Multi-user / auth if hosted publicly; per-user watchlists & bookmarks (server-side).
 - Trend charts over time (history is now retained, so time-series is possible).

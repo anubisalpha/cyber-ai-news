@@ -4,12 +4,28 @@ services:
     image: cyber-ai-news:latest
     ports:
       - "8000:8000"
+    # SMTP_* / GOOGLE_API_KEY / MAIL_TO for email + LLM (see .env.example).
+    # Missing file is fine — the web service runs without it.
+    env_file:
+      - path: .env
+        required: false
     volumes:
       # Persist the SQLite history across container restarts.
       - news-data:/app/data
-    environment:
-      # Optional: only used if the LLM fallback classifier is installed + enabled.
-      - GOOGLE_API_KEY=${GOOGLE_API_KEY:-}
+      # Edit config on the host (sources, watchlists, settings) without rebuilding;
+      # restart the container to pick up changes.
+      - ./config:/app/config:ro
+    # ---- hardening ----
+    read_only: true            # immutable rootfs; app only writes to the data volume
+    tmpfs:
+      - /tmp
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    # Bound resources so a runaway refresh can't starve the host.
+    mem_limit: 512m
+    pids_limit: 256
     restart: unless-stopped
 
 volumes:
