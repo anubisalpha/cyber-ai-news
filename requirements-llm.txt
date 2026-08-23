@@ -1,0 +1,5 @@
+# Optional dependency for the LLM fallback classifier
+# (classify.llm_fallback.enabled in config/settings.yaml).
+# Install with:  pip install -r requirements-llm.txt
+# The service runs fine without it — this only re-tags uncategorised items.
+google-generativeai>=0.7.0

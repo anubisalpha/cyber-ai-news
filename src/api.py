@@ -102,6 +102,24 @@ def get_source_health():
     return _svc().source_health()
 
 
+@app.get("/api/watchlists")
+def get_watchlists():
+    return {"watchlists": _svc().watchlists()}
+
+
+@app.get("/api/watchlists/{name}")
+def get_watchlist(
+    name: str,
+    limit: int = Query(50, ge=1, le=500),
+    offset: int = Query(0, ge=0),
+    sort: Optional[str] = Query(None, pattern="^(date|weight)$"),
+):
+    result = _svc().watchlist_page(name, limit=limit, offset=offset, sort=sort)
+    if result is None:
+        return Response(status_code=404, content=f"No watchlist '{name}'")
+    return result
+
+
 @app.get("/api/stats")
 def get_stats():
     return _svc().stats()
@@ -135,6 +153,7 @@ def post_refresh(background: BackgroundTasks):
 @app.get("/feed.xml")
 def rss_feed(
     request: Request,
+    watchlist: Optional[str] = None,
     domain: Optional[str] = Query(None, pattern="^(cyber|ai)$"),
     category: Optional[str] = None,
     severity: Optional[str] = Query(None, pattern="^(critical|high|medium|low)$"),
@@ -142,15 +161,25 @@ def rss_feed(
     q: Optional[str] = None,
     limit: int = Query(50, ge=1, le=200),
 ):
-    items, _ = _svc().query_page(
+    svc = _svc()
+    title = "Cyber + AI News"
+    if watchlist:
+        wl = config.find_watchlist(watchlist)
+        if wl is None:
+            return Response(status_code=404, content=f"No watchlist '{watchlist}'")
+        f = wl.get("filters", {})
+        domain, category, severity = f.get("domain"), f.get("category"), f.get("severity")
+        region, q = f.get("region"), f.get("q")
+        title += " — " + wl.get("label", watchlist)
+    items, _ = svc.query_page(
         domain=domain, category=category, severity=severity, region=region,
         q=q, sort="date", limit=limit, include_duplicates=False,
     )
     base = str(request.base_url).rstrip("/")
-    title = "Cyber + AI News"
-    bits = [b for b in (domain, category, severity, region, q) if b]
-    if bits:
-        title += " — " + " · ".join(bits)
+    if not watchlist:
+        bits = [b for b in (domain, category, severity, region, q) if b]
+        if bits:
+            title += " — " + " · ".join(bits)
 
     def item_xml(a):
         cats = "".join(f"<category>{xml_escape(c)}</category>" for c in a.categories)

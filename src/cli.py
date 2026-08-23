@@ -35,15 +35,24 @@ def cmd_refresh(args) -> int:
 
 def cmd_list(args) -> int:
     svc = NewsService()
-    items = svc.query(
-        domain=args.domain,
-        category=args.category,
-        severity=args.severity,
-        region=args.region,
-        source=args.source,
-        limit=args.limit,
-        sort=args.sort,
-    )
+    if getattr(args, "watchlist", None):
+        result = svc.watchlist_page(args.watchlist, limit=args.limit, sort=args.sort)
+        if result is None:
+            print(f"No watchlist '{args.watchlist}'. Try `watchlists`.")
+            return 1
+        from .models import Article
+        items = [Article.from_dict(d) for d in result["articles"]]
+        print(f"Watchlist: {result['label']}  ({result['total']} total)")
+    else:
+        items = svc.query(
+            domain=args.domain,
+            category=args.category,
+            severity=args.severity,
+            region=args.region,
+            source=args.source,
+            limit=args.limit,
+            sort=args.sort,
+        )
     if not items:
         print("No matching articles. Run `refresh` first, or loosen filters.")
         return 0
@@ -67,6 +76,15 @@ def cmd_digest(args) -> int:
     Path(out).write_text(html, encoding="utf-8")
     print(f"Subject: {subject}")
     print(f"{total} items. Preview written to {out} (use --send to email it).")
+    return 0
+
+
+def cmd_watchlists(args) -> int:
+    for wl in NewsService().watchlists():
+        alert = " (alert)" if wl["alert"] else ""
+        flt = ", ".join(f"{k}={v}" for k, v in wl["filters"].items())
+        print(f"  {wl['name']:22s} {wl['count']:>4}  {wl['label']}{alert}")
+        print(f"  {'':22s}       [{flt}]")
     return 0
 
 
@@ -112,6 +130,7 @@ def build_parser() -> argparse.ArgumentParser:
     lst.add_argument("--severity", choices=["critical", "high", "medium", "low"])
     lst.add_argument("--region", choices=["us", "eu", "uk", "apac"])
     lst.add_argument("--source", help="substring match on source name")
+    lst.add_argument("--watchlist", help="use a saved watchlist's filters (see `watchlists`)")
     lst.add_argument("--limit", type=int, default=None)
     lst.add_argument("--sort", choices=["date", "weight"], default=None)
     lst.set_defaults(func=cmd_list)
@@ -125,6 +144,7 @@ def build_parser() -> argparse.ArgumentParser:
     sub.add_parser("categories", help="list the category taxonomy").set_defaults(func=cmd_categories)
     sub.add_parser("sources", help="list configured sources").set_defaults(func=cmd_sources)
     sub.add_parser("health", help="show per-source fetch health").set_defaults(func=cmd_health)
+    sub.add_parser("watchlists", help="list saved watchlists with counts").set_defaults(func=cmd_watchlists)
     return p
 
 

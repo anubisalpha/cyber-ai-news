@@ -1,0 +1,51 @@
+# =============================================================================
+# Saved watchlists — named, reusable filters.
+#
+# Each watchlist is a saved query you can pull up in the dashboard, list from the
+# CLI, subscribe to as RSS, or turn into an alert. Filters map to the same fields
+# the API uses: domain, category, severity, region, source, q (free text).
+#
+# Add/rename/remove freely — nothing is hard-coded to a specific list.
+#
+#   name    : short kebab-case id (used in URLs / CLI)
+#   label   : human-readable name shown in the UI
+#   filters : any of {domain, category, severity, region, source, q}
+#   alert   : true  -> new matching items can trigger a notification (see settings.yaml
+#             alerts.enabled). Default false.
+# =============================================================================
+
+watchlists:
+  - name: critical-cyber
+    label: Critical Cyber
+    filters: {domain: cyber, severity: critical}
+    alert: true
+
+  - name: ai-x-cyber
+    label: AI × Cyber
+    filters: {category: intersection}
+    alert: true
+
+  - name: ransomware
+    label: Ransomware
+    filters: {q: ransomware}
+    alert: false
+
+  - name: active-exploitation
+    label: Actively Exploited
+    filters: {category: active_exploitation}
+    alert: true
+
+  - name: supply-chain
+    label: Supply Chain
+    filters: {category: supply_chain}
+    alert: false
+
+  - name: uk-focus
+    label: UK Focus
+    filters: {region: uk}
+    alert: false
+
+  - name: model-releases
+    label: AI Model Releases
+    filters: {domain: ai, category: model_releases}
+    alert: false

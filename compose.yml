@@ -1,0 +1,16 @@
+services:
+  news:
+    build: .
+    image: cyber-ai-news:latest
+    ports:
+      - "8000:8000"
+    volumes:
+      # Persist the SQLite history across container restarts.
+      - news-data:/app/data
+    environment:
+      # Optional: only used if the LLM fallback classifier is installed + enabled.
+      - GOOGLE_API_KEY=${GOOGLE_API_KEY:-}
+    restart: unless-stopped
+
+volumes:
+  news-data:

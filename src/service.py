@@ -76,6 +76,10 @@ class NewsService:
             self.settings.get("storage", {}).get("history_retention_days", 0)
         )
 
+        # 6. Watchlist alerts (no-op unless alerts.enabled).
+        from .alerts import AlertEngine
+        AlertEngine(self).check_and_notify(verbose=verbose)
+
         total = self.store.count()
         if verbose:
             extra = f" (trimmed {removed})" if removed else ""
@@ -150,6 +154,40 @@ class NewsService:
     # ---- aggregates ------------------------------------------------------
     def stats(self) -> dict:
         return self.store.stats()
+
+    # ---- watchlists ------------------------------------------------------
+    _WL_FIELDS = ("domain", "category", "severity", "region", "source", "q")
+
+    def watchlists(self) -> list[dict]:
+        """All watchlists with a current match count."""
+        out = []
+        for wl in config.load_watchlists():
+            filters = {k: v for k, v in wl.get("filters", {}).items()
+                       if k in self._WL_FIELDS}
+            _, total = self.store.query(limit=1, **filters)
+            out.append({
+                "name": wl.get("name"),
+                "label": wl.get("label", wl.get("name")),
+                "filters": filters,
+                "alert": bool(wl.get("alert", False)),
+                "count": total,
+            })
+        return out
+
+    def watchlist_page(self, name, limit=None, offset=0, sort=None,
+                       include_duplicates=False):
+        wl = config.find_watchlist(name)
+        if not wl:
+            return None
+        filters = {k: v for k, v in wl.get("filters", {}).items()
+                   if k in self._WL_FIELDS}
+        items, total = self.query_page(
+            limit=limit, offset=offset, sort=sort,
+            include_duplicates=include_duplicates, **filters,
+        )
+        return {"name": wl["name"], "label": wl.get("label", wl["name"]),
+                "filters": filters, "total": total,
+                "articles": [a.to_dict() for a in items]}
 
     def source_health(self) -> dict:
         rows = self.store.health()

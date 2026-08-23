@@ -38,6 +38,14 @@
 
   /* ---------- Overview ---------- */
   .wrap { padding: 20px; max-width: 1200px; margin: 0 auto; }
+  .watchstrip { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 16px; }
+  .wchip { display: inline-flex; align-items: center; gap: 7px; padding: 6px 12px;
+           background: var(--panel); border: 1px solid var(--border); border-radius: 999px;
+           font-size: 13px; cursor: pointer; }
+  .wchip:hover { border-color: var(--accent); }
+  .wchip .c { background: var(--panel-2); border-radius: 999px; padding: 1px 7px;
+              font-size: 11px; color: var(--muted); font-variant-numeric: tabular-nums; }
+  .wchip.alert::before { content: "🔔"; font-size: 11px; }
   .kpis { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; margin-bottom: 18px; }
   @media (max-width: 760px) { .kpis { grid-template-columns: repeat(2, 1fr); } }
   .kpi { background: var(--panel); border: 1px solid var(--border); border-radius: 10px; padding: 16px; cursor: pointer; }
@@ -91,8 +99,14 @@
   .toolbar { display: flex; align-items: center; gap: 10px; margin-bottom: 14px; flex-wrap: wrap; }
   .toolbar .count { color: var(--muted); font-size: 13px; }
   .acard { background: var(--panel); border: 1px solid var(--border); border-radius: 10px;
-          padding: 14px 16px; margin-bottom: 10px; }
+          padding: 14px 16px; margin-bottom: 10px; position: relative; }
   .acard:hover { border-color: var(--accent); }
+  .acard.read { opacity: .58; }
+  .acard.read:hover { opacity: 1; }
+  .acard .star { position: absolute; top: 12px; right: 12px; background: none; border: none;
+                 font-size: 17px; color: var(--muted); cursor: pointer; padding: 0; line-height: 1; }
+  .acard .star.on { color: var(--med); }
+  .acard .title { padding-right: 26px; }
   .acard a.title { color: var(--text); text-decoration: none; font-weight: 600; font-size: 15px; line-height: 1.35; }
   .acard a.title:hover { color: var(--accent); }
   .meta { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin-top: 8px; font-size: 12px; color: var(--muted); }
@@ -123,6 +137,7 @@
 
 <!-- ============ OVERVIEW ============ -->
 <section id="overview" class="wrap">
+  <div id="watchStrip" class="watchstrip"></div>
   <div class="kpis" id="kpis"></div>
   <div class="grid">
     <div class="col">
@@ -180,7 +195,11 @@
       </select>
     </aside>
     <main>
-      <div class="toolbar"><span class="count" id="count">Loading…</span></div>
+      <div class="toolbar">
+        <span class="count" id="count">Loading…</span>
+        <label style="margin-left:auto;font-size:13px;color:var(--muted);cursor:pointer">
+          <input type="checkbox" id="savedOnly" style="vertical-align:-1px"> ★ Saved only</label>
+      </div>
       <div id="list"></div>
       <button id="loadMore" class="hidden">Load more</button>
     </main>
@@ -189,7 +208,7 @@
 
 <script>
 const $ = (s) => document.querySelector(s);
-const state = { domain: "", category: "", severity: "", region: "", q: "", sort: "date", offset: 0 };
+const state = { domain: "", category: "", severity: "", region: "", q: "", sort: "date", offset: 0, savedOnly: false };
 let searchTimer = null, browseLoaded = false;
 
 function escapeHtml(s) {
@@ -198,8 +217,31 @@ function escapeHtml(s) {
 }
 function fmtDate(iso) {
   if (!iso) return "";
-  try { return new Date(iso).toLocaleDateString(undefined, {month:"short", day:"numeric"}); }
-  catch { return iso.slice(0,10); }
+  try {
+    const d = new Date(iso), now = new Date();
+    const mins = Math.round((now - d) / 60000);
+    if (mins < 60) return mins <= 1 ? "just now" : mins + "m ago";
+    const hrs = Math.round(mins / 60);
+    if (hrs < 24) return hrs + "h ago";
+    const days = Math.round(hrs / 24);
+    if (days < 7) return days + "d ago";
+    return d.toLocaleDateString(undefined, {month:"short", day:"numeric"});
+  } catch { return iso.slice(0,10); }
+}
+function fullDate(iso) {
+  try { return new Date(iso).toLocaleString(); } catch { return iso || ""; }
+}
+
+/* ---------- read / bookmark state (localStorage) ---------- */
+const READ_KEY = "can_read", SAVE_KEY = "can_saved";
+function loadSet(k) { try { return new Set(JSON.parse(localStorage.getItem(k) || "[]")); } catch { return new Set(); } }
+function saveSet(k, s) { localStorage.setItem(k, JSON.stringify([...s])); }
+let readSet = loadSet(READ_KEY), savedSet = loadSet(SAVE_KEY);
+function markRead(id) { if (!readSet.has(id)) { readSet.add(id); saveSet(READ_KEY, readSet); } }
+function toggleSaved(id) {
+  if (savedSet.has(id)) savedSet.delete(id); else savedSet.add(id);
+  saveSet(SAVE_KEY, savedSet);
+  return savedSet.has(id);
 }
 
 /* ---------- view switching ---------- */
@@ -316,13 +358,23 @@ function acard(a) {
     `<span class="tag" data-cat="${c.split('.').pop()}">${c}</span>`).join("");
   const dup = a.duplicate_of ? `<span title="near-duplicate of another item">· similar</span>` : "";
   const el = document.createElement("div");
-  el.className = "acard";
+  el.className = "acard" + (readSet.has(a.id) ? " read" : "");
+  const saved = savedSet.has(a.id);
   el.innerHTML = `
+    <button class="star ${saved?"on":""}" title="bookmark">${saved?"★":"☆"}</button>
     <a class="title" href="${a.url}" target="_blank" rel="noopener">${escapeHtml(a.title)}</a>
     <div class="meta"><span class="badge dom-${a.domain}">${a.domain}</span>${sev}
-      <span>${escapeHtml(a.source)}</span><span>·</span><span>${fmtDate(a.published)}</span>${dup}</div>
+      <span>${escapeHtml(a.source)}</span><span>·</span>
+      <span title="${fullDate(a.published)}">${fmtDate(a.published)}</span>${dup}</div>
     ${a.summary ? `<div class="summary">${escapeHtml(a.summary.slice(0,240))}${a.summary.length>240?"…":""}</div>`:""}
     <div class="tags">${tags}</div>`;
+  el.querySelector(".title").addEventListener("click", () => { markRead(a.id); el.classList.add("read"); });
+  el.querySelector(".star").addEventListener("click", (e) => {
+    const on = toggleSaved(a.id);
+    e.target.textContent = on ? "★" : "☆";
+    e.target.classList.toggle("on", on);
+    if (state.savedOnly && !on) el.remove();
+  });
   el.querySelectorAll(".tag").forEach(t => t.addEventListener("click", () => {
     state.category = t.dataset.cat; state.offset = 0; syncControls(); loadBrowse();
   }));
@@ -330,20 +382,26 @@ function acard(a) {
 }
 async function loadBrowse(append = false) {
   const p = new URLSearchParams();
-  for (const [k, v] of Object.entries(state)) if (v) p.set(k, v);
-  p.set("limit", "50");
-  if (!append) { state.offset = 0; p.set("offset", "0"); }
+  for (const [k, v] of Object.entries(state)) {
+    if (k === "savedOnly" || k === "offset") continue;
+    if (v) p.set(k, v);
+  }
+  const savedOnly = state.savedOnly;
+  p.set("limit", savedOnly ? "500" : "50");
+  p.set("offset", savedOnly ? "0" : String(append ? state.offset : (state.offset = 0)));
   const data = await fetch("/api/articles?" + p).then(r => r.json());
   const list = $("#list");
   if (!append) list.innerHTML = "";
-  if (!data.articles.length && !append) {
-    list.innerHTML = `<div class="empty">No articles match these filters.</div>`;
+  let articles = data.articles;
+  if (savedOnly) articles = articles.filter(a => savedSet.has(a.id));
+  if (!articles.length && !append) {
+    list.innerHTML = `<div class="empty">${savedOnly ? "No bookmarked items match." : "No articles match these filters."}</div>`;
   } else {
-    data.articles.forEach(a => list.appendChild(acard(a)));
+    articles.forEach(a => list.appendChild(acard(a)));
   }
   const shown = list.querySelectorAll(".acard").length;
-  $("#count").textContent = `${shown} of ${data.total}`;
-  $("#loadMore").classList.toggle("hidden", shown >= data.total);
+  $("#count").textContent = savedOnly ? `${shown} bookmarked` : `${shown} of ${data.total}`;
+  $("#loadMore").classList.toggle("hidden", savedOnly || shown >= data.total);
 }
 
 /* ---------- controls ---------- */
@@ -367,6 +425,7 @@ $("#search").addEventListener("input", e => {
   searchTimer = setTimeout(() => { state.q = e.target.value.trim(); state.offset = 0; loadBrowse(); }, 300);
 });
 $("#loadMore").addEventListener("click", () => { state.offset += 50; loadBrowse(true); });
+$("#savedOnly").addEventListener("change", e => { state.savedOnly = e.target.checked; state.offset = 0; loadBrowse(); });
 
 $("#refreshBtn").addEventListener("click", async () => {
   const btn = $("#refreshBtn");
@@ -382,6 +441,18 @@ $("#refreshBtn").addEventListener("click", async () => {
     }
   }, 1500);
 });
+
+async function loadWatchlists() {
+  try {
+    const { watchlists } = await fetch("/api/watchlists").then(r => r.json());
+    const strip = $("#watchStrip");
+    strip.innerHTML = watchlists.map(w =>
+      `<span class="wchip ${w.alert ? "alert" : ""}" data-filter='${JSON.stringify(w.filters)}'>
+         ${escapeHtml(w.label)} <span class="c">${w.count}</span></span>`).join("");
+    strip.querySelectorAll(".wchip").forEach(el =>
+      el.addEventListener("click", () => jumpToBrowse(JSON.parse(el.dataset.filter))));
+  } catch (e) { /* ignore */ }
+}
 
 async function loadHealth() {
   try {
@@ -405,6 +476,7 @@ async function loadHealth() {
 
 /* ---------- init ---------- */
 loadOverview();
+loadWatchlists();
 loadHealth();
 </script>
 </body>

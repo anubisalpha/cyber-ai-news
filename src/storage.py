@@ -72,6 +72,13 @@ class Storage:
                 error         TEXT,
                 fail_streak   INTEGER DEFAULT 0
             );
+
+            CREATE TABLE IF NOT EXISTS alert_hits (
+                watchlist   TEXT,
+                article_id  TEXT,
+                notified_at TEXT,
+                PRIMARY KEY (watchlist, article_id)
+            );
             """
         )
         self.conn.commit()
@@ -230,6 +237,28 @@ class Storage:
             "SELECT * FROM source_health ORDER BY ok ASC, name ASC"
         )
         return [dict(r) for r in cur.fetchall()]
+
+    # ---- alert bookkeeping ----------------------------------------------
+    def alert_baseline_exists(self, watchlist: str) -> bool:
+        row = self.conn.execute(
+            "SELECT 1 FROM alert_hits WHERE watchlist=? LIMIT 1", (watchlist,)
+        ).fetchone()
+        return row is not None
+
+    def known_alert_ids(self, watchlist: str) -> set[str]:
+        cur = self.conn.execute(
+            "SELECT article_id FROM alert_hits WHERE watchlist=?", (watchlist,)
+        )
+        return {r[0] for r in cur.fetchall()}
+
+    def record_alert_hits(self, watchlist: str, ids: list[str]) -> None:
+        now = datetime.now(timezone.utc).isoformat()
+        self.conn.executemany(
+            "INSERT OR IGNORE INTO alert_hits (watchlist, article_id, notified_at) "
+            "VALUES (?, ?, ?)",
+            [(watchlist, i, now) for i in ids],
+        )
+        self.conn.commit()
 
     # ---- migration / export ---------------------------------------------
     def import_json(self, json_path: Path) -> int:

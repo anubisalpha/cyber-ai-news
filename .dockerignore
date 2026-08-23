@@ -1,0 +1,16 @@
+.git
+.gitignore
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+tests/
+data/
+*.db
+*.db-*
+.env
+*.local
+digest_preview.html
+PLAN.md
+README.md
+.claude/

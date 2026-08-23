@@ -56,6 +56,14 @@ schedule:
   # NOTE: enabling this sends REAL email autonomously via claude-mail.
   digest_daily_at: null
 
+# Watchlist alerts — notify when NEW items match an alert-enabled watchlist
+# (see config/watchlists.yaml). Checked after each refresh.
+alerts:
+  enabled: false
+  channel: log             # "email" (via claude-mail) or "log" (print only)
+  recipient: null          # null = claude-mail's DEFAULT_TO
+  max_per_watchlist: 10
+
 # Email digest (sent via the claude-mail project's send()).
 digest:
   enabled: true

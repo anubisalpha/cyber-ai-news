@@ -31,3 +31,15 @@ def load_categories() -> dict:
 
 def load_settings() -> dict:
     return _load("settings.yaml")
+
+
+def load_watchlists() -> list[dict]:
+    data = _load("watchlists.yaml")
+    return data.get("watchlists", [])
+
+
+def find_watchlist(name: str) -> dict | None:
+    for wl in load_watchlists():
+        if wl.get("name") == name:
+            return wl
+    return None
