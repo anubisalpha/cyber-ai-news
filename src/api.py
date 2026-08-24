@@ -39,6 +39,11 @@ _AUTH_PASS = os.environ.get("AUTH_PASS", "").strip()
 
 
 class _BasicAuthMiddleware(BaseHTTPMiddleware):
+    def __init__(self, app, user: str, password: str):
+        super().__init__(app)
+        self._user = user
+        self._pass = password
+
     async def dispatch(self, request: Request, call_next):
         # Health endpoint is always open so container probes work without credentials.
         if request.url.path == "/api/health":
@@ -47,7 +52,7 @@ class _BasicAuthMiddleware(BaseHTTPMiddleware):
         if auth.startswith("Basic "):
             try:
                 user, _, pw = base64.b64decode(auth[6:]).decode().partition(":")
-                if secrets.compare_digest(user, _AUTH_USER) and secrets.compare_digest(pw, _AUTH_PASS):
+                if secrets.compare_digest(user, self._user) and secrets.compare_digest(pw, self._pass):
                     return await call_next(request)
             except Exception:  # noqa: BLE001
                 pass
@@ -79,7 +84,7 @@ app = FastAPI(
 # Use this when running the container directly (without a proxy handling auth).
 # /api/health is always open so healthcheck probes work without credentials.
 if _AUTH_USER and _AUTH_PASS:
-    app.add_middleware(_BasicAuthMiddleware)
+    app.add_middleware(_BasicAuthMiddleware, user=_AUTH_USER, password=_AUTH_PASS)
 
 # In-memory refresh status (single-process; fine for the dashboard).
 _refresh_state: dict = {"running": False, "last_finished": None, "last_error": None}
