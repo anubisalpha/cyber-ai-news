@@ -45,7 +45,7 @@ _OPEN_API_PATHS = {"/api/health", "/auth/login", "/auth/logout", "/auth/me"}
 class _SessionAuthMiddleware(BaseHTTPMiddleware):
     async def dispatch(self, request: Request, call_next):
         path = request.url.path
-        needs_auth = path.startswith("/api/") or path.startswith("/admin/")
+        needs_auth = path.startswith("/api/") or path.startswith("/admin/") or path.startswith("/user/")
         if not needs_auth or path in _OPEN_API_PATHS:
             return await call_next(request)
 
