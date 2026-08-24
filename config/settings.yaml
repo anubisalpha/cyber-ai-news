@@ -50,11 +50,27 @@ output:
 # or standalone via `python -m src.scheduler`.
 schedule:
   enabled: false
-  interval_minutes: 60
   refresh_on_start: false
-  # Optional daily digest email. "08:00" (local 24h) sends it once a day; null = off.
-  # NOTE: enabling this sends REAL email autonomously via claude-mail.
-  digest_daily_at: null
+
+  # Hourly refresh during working hours (Mon–Fri only).
+  working_hours:
+    enabled: true
+    days: [mon, tue, wed, thu, fri]
+    from: "08:00"
+    to: "18:00"
+
+  # Nightly sweep — runs every day at this time regardless of day.
+  # Immediately followed by the critical digest if that is enabled.
+  nightly_sweep:
+    enabled: true
+    at: "02:00"
+
+  # Critical digest — sent right after the nightly sweep, covering the
+  # 24-hour window ending at sweep time (02:00 yesterday → 02:00 today).
+  # Requires Phase 4 user subscriptions; uses digest.recipient until then.
+  # NOTE: enabling this sends REAL email autonomously.
+  critical_digest:
+    enabled: false
 
 # Watchlist alerts — notify when NEW items match an alert-enabled watchlist
 # (see config/watchlists.yaml). Checked after each refresh.

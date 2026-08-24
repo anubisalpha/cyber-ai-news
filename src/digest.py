@@ -122,3 +122,50 @@ class DigestBuilder:
         recipient = to or self.cfg.get("recipient")  # None -> mailer default
         from .mailer import send_email  # noqa: PLC0415
         return send_email(recipient, subject, html)
+
+    def build_critical(self, anchor_time=None) -> tuple[str, str, int]:
+        """Build a critical/high digest for the 24h window ending at anchor_time (02:00→02:00)."""
+        from datetime import datetime, timedelta, timezone  # noqa: PLC0415
+        anchor = anchor_time or datetime.now(timezone.utc)
+        if anchor.tzinfo is None:
+            anchor = anchor.replace(tzinfo=timezone.utc)
+        cutoff = (anchor - timedelta(hours=24)).isoformat()
+
+        sections = [
+            {"title": "Critical — last 24h", "severity": "critical"},
+            {"title": "High — last 24h", "severity": "high"},
+        ]
+        blocks, total = [], 0
+        for sec in sections:
+            filters = {k: v for k, v in sec.items() if k != "title"}
+            items, _ = self.svc.store.query(sort="date", limit=200, **filters)
+            filtered = [
+                a for a in items
+                if not a.duplicate_of and (a.first_seen or "") >= cutoff
+            ]
+            if not filtered:
+                continue
+            total += len(filtered)
+            rows = "".join(self._item_html(a) for a in filtered[:self.max_per_section])
+            blocks.append(
+                f'<h2 style="font-size:15px;margin:22px 0 8px;color:#111">'
+                f'{escape(sec["title"])}</h2>{rows}'
+            )
+
+        window_label = f"{anchor.strftime('%d %b %Y')} 02:00 — 24h window"
+        header = (
+            f'<div style="font-size:13px;color:#57606a;margin-bottom:4px">'
+            f'{total} critical/high items · {window_label}</div>'
+        )
+        body = header + (
+            "".join(blocks) if blocks
+            else '<p style="color:#57606a">No critical or high items in this window.</p>'
+        )
+        subject = f"Critical Cyber+AI Alerts — {anchor.strftime('%d %b %Y')}"
+        return subject, self._wrap(body), total
+
+    def send_critical(self, anchor_time=None, to: str | None = None) -> str:
+        subject, html, _ = self.build_critical(anchor_time=anchor_time)
+        recipient = to or self.cfg.get("recipient")
+        from .mailer import send_email  # noqa: PLC0415
+        return send_email(recipient, subject, html)
