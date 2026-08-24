@@ -29,7 +29,7 @@ class Storage:
     def __init__(self, db_path: Path):
         self.db_path = Path(db_path)
         self.db_path.parent.mkdir(parents=True, exist_ok=True)
-        self.conn = sqlite3.connect(str(self.db_path), timeout=10)
+        self.conn = sqlite3.connect(str(self.db_path), timeout=10, check_same_thread=False)
         self.conn.row_factory = sqlite3.Row
         # WAL lets readers (the API) proceed during a writer (a refresh);
         # busy_timeout waits instead of erroring if the db is briefly locked.
@@ -79,9 +79,38 @@ class Storage:
                 notified_at TEXT,
                 PRIMARY KEY (watchlist, article_id)
             );
+
+            CREATE TABLE IF NOT EXISTS users (
+                id                    INTEGER PRIMARY KEY AUTOINCREMENT,
+                username              TEXT UNIQUE NOT NULL,
+                password_hash         TEXT NOT NULL,
+                is_admin              INTEGER NOT NULL DEFAULT 0,
+                force_password_change INTEGER NOT NULL DEFAULT 0,
+                auth_source           TEXT NOT NULL DEFAULT 'local',
+                created_at            TEXT,
+                last_login            TEXT
+            );
+
+            CREATE TABLE IF NOT EXISTS ad_config (
+                id            INTEGER PRIMARY KEY CHECK (id = 1),
+                server        TEXT,
+                port          INTEGER DEFAULT 389,
+                use_tls       INTEGER DEFAULT 0,
+                base_dn       TEXT,
+                bind_dn       TEXT,
+                bind_password TEXT,
+                user_filter   TEXT,
+                group_dn      TEXT,
+                updated_at    TEXT
+            );
             """
         )
-        self.conn.commit()
+        # Add auth_source column if this DB was created before it existed
+        try:
+            self.conn.execute("ALTER TABLE users ADD COLUMN auth_source TEXT NOT NULL DEFAULT 'local'")
+            self.conn.commit()
+        except Exception:  # column already exists — ignore
+            pass
 
     # ---- (de)serialisation ----------------------------------------------
     @staticmethod
@@ -278,3 +307,76 @@ class Storage:
 
     def close(self) -> None:
         self.conn.close()
+
+    # ---- user management ------------------------------------------------
+    def has_any_users(self) -> bool:
+        return self.conn.execute("SELECT 1 FROM users LIMIT 1").fetchone() is not None
+
+    def create_user(self, username: str, password_hash: str, is_admin: bool = False,
+                    force_password_change: bool = False, auth_source: str = "local") -> int:
+        now = datetime.now(timezone.utc).isoformat()
+        cur = self.conn.execute(
+            "INSERT INTO users (username, password_hash, is_admin, force_password_change, auth_source, created_at) "
+            "VALUES (?, ?, ?, ?, ?, ?)",
+            (username, password_hash, 1 if is_admin else 0,
+             1 if force_password_change else 0, auth_source, now),
+        )
+        self.conn.commit()
+        return cur.lastrowid
+
+    def upsert_ldap_user(self, username: str, is_admin: bool) -> int:
+        """Create or update an LDAP-provisioned user; returns their id."""
+        now = datetime.now(timezone.utc).isoformat()
+        existing = self.get_user_by_username(username)
+        if existing:
+            self.conn.execute(
+                "UPDATE users SET is_admin=?, auth_source='ldap' WHERE id=?",
+                (1 if is_admin else 0, existing["id"]),
+            )
+            self.conn.commit()
+            return existing["id"]
+        return self.create_user(username, "LDAP", is_admin=is_admin, auth_source="ldap")
+
+    def get_user_by_username(self, username: str) -> dict | None:
+        row = self.conn.execute("SELECT * FROM users WHERE username=?", (username,)).fetchone()
+        return dict(row) if row else None
+
+    def get_user_by_id(self, user_id: int) -> dict | None:
+        row = self.conn.execute("SELECT * FROM users WHERE id=?", (user_id,)).fetchone()
+        return dict(row) if row else None
+
+    def list_users(self) -> list[dict]:
+        cur = self.conn.execute("SELECT id,username,is_admin,force_password_change,created_at,last_login FROM users ORDER BY id")
+        return [dict(r) for r in cur.fetchall()]
+
+    def update_user_password(self, user_id: int, new_hash: str, clear_force_change: bool = True) -> None:
+        self.conn.execute(
+            "UPDATE users SET password_hash=?, force_password_change=? WHERE id=?",
+            (new_hash, 0 if clear_force_change else 1, user_id),
+        )
+        self.conn.commit()
+
+    def update_user_last_login(self, user_id: int) -> None:
+        self.conn.execute(
+            "UPDATE users SET last_login=? WHERE id=?",
+            (datetime.now(timezone.utc).isoformat(), user_id),
+        )
+        self.conn.commit()
+
+    # ---- AD config -------------------------------------------------------
+    def get_ad_config(self) -> dict | None:
+        row = self.conn.execute("SELECT * FROM ad_config WHERE id=1").fetchone()
+        return dict(row) if row else None
+
+    def upsert_ad_config(self, **fields) -> None:
+        now = datetime.now(timezone.utc).isoformat()
+        fields["updated_at"] = now
+        cols = ", ".join(fields.keys())
+        placeholders = ", ".join("?" for _ in fields)
+        updates = ", ".join(f"{k}=excluded.{k}" for k in fields if k != "id")
+        self.conn.execute(
+            f"INSERT INTO ad_config (id, {cols}) VALUES (1, {placeholders}) "
+            f"ON CONFLICT(id) DO UPDATE SET {updates}",
+            list(fields.values()),
+        )
+        self.conn.commit()

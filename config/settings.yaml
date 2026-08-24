@@ -49,7 +49,7 @@ output:
 # Scheduled auto-refresh. Runs in-process when the API starts (if enabled),
 # or standalone via `python -m src.scheduler`.
 schedule:
-  enabled: false
+  enabled: true
   refresh_on_start: false
 
   # Hourly refresh during working hours (Mon–Fri only).
@@ -77,6 +77,7 @@ schedule:
 alerts:
   enabled: false
   channel: log             # "email" (via claude-mail) or "log" (print only)
+  recipient: null          # null = claude-mail's DEFAULT_TO
   recipient: null          # null = claude-mail's DEFAULT_TO
   max_per_watchlist: 10
 

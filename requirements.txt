@@ -3,6 +3,9 @@ requests>=2.31.0
 PyYAML>=6.0.1
 fastapi>=0.110.0
 uvicorn[standard]>=0.29.0
+bcrypt>=4.0.0
+itsdangerous>=2.1.0
+ldap3>=2.9.1
 
 # The optional LLM fallback classifier needs an extra package — see
 # requirements-llm.txt (kept separate as it's a large, slow install).

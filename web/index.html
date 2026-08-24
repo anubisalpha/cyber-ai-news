@@ -121,18 +121,80 @@
           border-top-color: transparent; border-radius: 50%; animation: s 0.7s linear infinite; vertical-align: -2px; }
   @keyframes s { to { transform: rotate(360deg); } }
   #loadMore { display: block; margin: 8px auto 30px; }
+
+  /* ---------- Auth overlay ---------- */
+  #loginOverlay { position: fixed; inset: 0; z-index: 1000; display: flex; align-items: center; justify-content: center;
+                  background: rgba(0,0,0,.7); backdrop-filter: blur(4px); }
+  #loginOverlay.hidden { display: none !important; }
+  #loginBox { background: var(--panel); border: 1px solid var(--border); border-radius: 14px;
+              padding: 32px; width: 340px; max-width: 95vw; box-shadow: 0 8px 40px rgba(0,0,0,.4); }
+  #loginBox h2 { margin: 0 0 20px; font-size: 18px; }
+  #loginBox label { display: block; font-size: 13px; color: var(--muted); margin-bottom: 4px; margin-top: 14px; }
+  #loginBox input { width: 100%; padding: 9px 12px; border-radius: 7px; border: 1px solid var(--border);
+                    background: var(--panel-2); color: var(--text); font: inherit; }
+  #loginBox input:focus { outline: 2px solid var(--accent); border-color: transparent; }
+  #loginBox button { width: 100%; margin-top: 18px; padding: 10px; font-size: 15px; }
+  #loginError { color: var(--crit); font-size: 13px; margin-top: 8px; min-height: 18px; }
+
+  /* ---------- Security warning banner ---------- */
+  #pwChangeBanner { background: color-mix(in srgb, var(--crit) 15%, transparent);
+                    border: 1px solid var(--crit); border-radius: 8px; padding: 12px 16px;
+                    margin: 14px 20px 0; font-size: 13px; color: var(--text); display: flex;
+                    align-items: flex-start; gap: 10px; }
+  #pwChangeBanner.hidden { display: none !important; }
+  #pwChangeBanner strong { color: var(--crit); }
+  #pwChangeBanner a { color: var(--accent); cursor: pointer; text-decoration: underline; }
+
+  /* ---------- Admin panel ---------- */
+  #adminSection { padding: 20px; max-width: 760px; margin: 0 auto; }
+  #adminSection h2 { font-size: 17px; margin: 0 0 20px; }
+  .admin-card { background: var(--panel); border: 1px solid var(--border); border-radius: 10px;
+                padding: 20px; margin-bottom: 16px; }
+  .admin-card h3 { margin: 0 0 14px; font-size: 14px; text-transform: uppercase;
+                   letter-spacing: .6px; color: var(--muted); }
+  .admin-card label { display: block; font-size: 13px; color: var(--muted); margin: 10px 0 3px; }
+  .admin-card input[type=text], .admin-card input[type=password], .admin-card input[type=number] {
+    width: 100%; padding: 8px 10px; border-radius: 6px; border: 1px solid var(--border);
+    background: var(--panel-2); color: var(--text); font: inherit; margin-bottom: 4px; }
+  .admin-card button { margin-top: 12px; }
+  .admin-msg { font-size: 13px; margin-top: 8px; min-height: 18px; }
+  .admin-msg.ok { color: var(--accent-2); }
+  .admin-msg.err { color: var(--crit); }
+  table.users { width: 100%; border-collapse: collapse; font-size: 13px; }
+  table.users th, table.users td { text-align: left; padding: 8px 10px; border-bottom: 1px solid var(--border); }
+  table.users th { color: var(--muted); font-weight: 600; }
 </style>
 </head>
 <body>
+<!-- Login overlay -->
+<div id="loginOverlay">
+  <div id="loginBox">
+    <h2>Sign in</h2>
+    <label for="loginUser">Username</label>
+    <input type="text" id="loginUser" autocomplete="username" />
+    <label for="loginPass">Password</label>
+    <input type="password" id="loginPass" autocomplete="current-password" />
+    <button class="primary" id="loginBtn">Sign in</button>
+    <div id="loginError"></div>
+  </div>
+</div>
+
+<!-- Password-change security banner -->
+<div id="pwChangeBanner" class="hidden">
+  ⚠ <span><strong>Security Alert</strong> — You are using the default bootstrapped password.
+  <a id="goToAdminPw">Change it immediately in the Admin panel</a> before this service goes live.</span>
+</div>
 <header>
   <h1><span class="dot">●</span> Cyber<span style="color:var(--muted)">+</span>AI News</h1>
   <nav>
     <button id="navOverview" class="active">Overview</button>
     <button id="navBrowse">Browse</button>
+    <button id="navAdmin" class="hidden">Admin</button>
   </nav>
   <span class="stats" id="headerStats"></span>
   <span id="healthBadge" title="source health" style="font-size:12px;cursor:pointer"></span>
   <button id="refreshBtn" class="primary">↻ Refresh feeds</button>
+  <button id="logoutBtn" style="font-size:12px;padding:5px 10px">Sign out</button>
 </header>
 
 <!-- ============ OVERVIEW ============ -->
@@ -157,6 +219,55 @@
   <div class="grid" style="margin-top:16px">
     <div class="card"><h3>⚠ Critical &amp; actively exploited</h3><div id="ovCritical"></div></div>
     <div class="card"><h3>AI × Cyber</h3><div id="ovInter"></div></div>
+  </div>
+</section>
+
+<!-- ============ ADMIN ============ -->
+<section id="adminSection" class="hidden">
+  <h2>Admin</h2>
+
+  <div class="admin-card">
+    <h3>Change password</h3>
+    <label>Current password</label>
+    <input type="password" id="curPw" autocomplete="current-password" />
+    <label>New password (min 8 characters)</label>
+    <input type="password" id="newPw" autocomplete="new-password" />
+    <label>Confirm new password</label>
+    <input type="password" id="newPw2" autocomplete="new-password" />
+    <button class="primary" id="changePwBtn">Update password</button>
+    <div class="admin-msg" id="changePwMsg"></div>
+  </div>
+
+  <div class="admin-card">
+    <h3>Active Directory / LDAP</h3>
+    <p style="color:var(--muted);font-size:13px;margin:0 0 14px">
+      Configure an AD/LDAP server to allow domain accounts to log in.
+      Leave blank to use local accounts only.
+    </p>
+    <label>LDAP server (hostname or IP)</label>
+    <input type="text" id="adServer" placeholder="ldap.example.com" />
+    <label>Port</label>
+    <input type="number" id="adPort" value="389" min="1" max="65535" style="width:100px" />
+    <label style="display:inline-flex;align-items:center;gap:8px;margin-top:10px;color:var(--text)">
+      <input type="checkbox" id="adTls"> Use TLS (LDAPS)
+    </label>
+    <label>Base DN</label>
+    <input type="text" id="adBaseDn" placeholder="DC=example,DC=com" />
+    <label>Bind DN (service account)</label>
+    <input type="text" id="adBindDn" placeholder="CN=svc-ldap,OU=Service,DC=example,DC=com" />
+    <label>Bind password</label>
+    <input type="password" id="adBindPw" autocomplete="new-password" placeholder="leave blank to keep existing" />
+    <label>Login group DN (users must be a member of this group to log in)</label>
+    <input type="text" id="adUserFilter" placeholder="CN=CyberNewsUsers,OU=Groups,DC=example,DC=com" />
+    <label>Admin group DN (members of this group get admin rights)</label>
+    <input type="text" id="adGroupDn" placeholder="CN=IT-Admins,OU=Groups,DC=example,DC=com" />
+    <button class="primary" id="saveAdBtn">Save AD config</button>
+    <div class="admin-msg" id="adMsg"></div>
+  </div>
+
+  <div class="admin-card">
+    <h3>Users</h3>
+    <div id="userTableWrap"></div>
   </div>
 </section>
 
@@ -207,6 +318,165 @@
 </section>
 
 <script>
+/* ===== AUTH ===== */
+let _currentUser = null;
+
+async function checkAuth() {
+  const r = await fetch("/auth/me");
+  if (r.status === 401) {
+    document.getElementById("loginOverlay").classList.remove("hidden");
+    return false;
+  }
+  _currentUser = await r.json();
+  document.getElementById("loginOverlay").classList.add("hidden");
+  const adminBtn = document.getElementById("navAdmin");
+  if (_currentUser.is_admin) adminBtn.classList.remove("hidden");
+  if (_currentUser.force_password_change) {
+    document.getElementById("pwChangeBanner").classList.remove("hidden");
+  }
+  return true;
+}
+
+document.getElementById("loginBtn").addEventListener("click", async () => {
+  const user = document.getElementById("loginUser").value.trim();
+  const pass = document.getElementById("loginPass").value;
+  const err = document.getElementById("loginError");
+  err.textContent = "";
+  if (!user || !pass) { err.textContent = "Enter username and password."; return; }
+  const r = await fetch("/auth/login", {
+    method: "POST",
+    headers: {"Content-Type": "application/json"},
+    body: JSON.stringify({username: user, password: pass}),
+  });
+  if (r.ok) {
+    await checkAuth();
+    loadOverview(); loadWatchlists(); loadHealth();
+  } else {
+    err.textContent = "Invalid username or password.";
+    document.getElementById("loginPass").value = "";
+  }
+});
+document.getElementById("loginPass").addEventListener("keydown", e => {
+  if (e.key === "Enter") document.getElementById("loginBtn").click();
+});
+
+document.getElementById("logoutBtn").addEventListener("click", async () => {
+  await fetch("/auth/logout", {method: "POST"});
+  _currentUser = null;
+  document.getElementById("loginOverlay").classList.remove("hidden");
+  document.getElementById("navAdmin").classList.add("hidden");
+  document.getElementById("pwChangeBanner").classList.add("hidden");
+});
+
+document.getElementById("goToAdminPw").addEventListener("click", () => showSection("admin"));
+
+/* ===== ADMIN ===== */
+function showSection(name) {
+  ["overview","browse","adminSection"].forEach(id =>
+    document.getElementById(id).classList.toggle("hidden", id !== (name === "admin" ? "adminSection" : name)));
+  ["navOverview","navBrowse","navAdmin"].forEach(id => {
+    const map = {navOverview:"overview",navBrowse:"browse",navAdmin:"admin"};
+    document.getElementById(id).classList.toggle("active", map[id] === name);
+  });
+  if (name === "admin") loadAdminPanel();
+}
+
+function adminMsg(elId, text, isErr) {
+  const el = document.getElementById(elId);
+  el.textContent = text;
+  el.className = "admin-msg " + (isErr ? "err" : "ok");
+  if (!isErr) setTimeout(() => { el.textContent = ""; }, 4000);
+}
+
+async function loadAdminPanel() {
+  // Load AD config
+  try {
+    const r = await fetch("/admin/ad");
+    if (r.ok) {
+      const {ad_config: c} = await r.json();
+      if (c) {
+        document.getElementById("adServer").value = c.server || "";
+        document.getElementById("adPort").value = c.port || 389;
+        document.getElementById("adTls").checked = !!c.use_tls;
+        document.getElementById("adBaseDn").value = c.base_dn || "";
+        document.getElementById("adBindDn").value = c.bind_dn || "";
+        document.getElementById("adUserFilter").value = c.user_filter || "";
+        document.getElementById("adGroupDn").value = c.group_dn || "";
+      }
+    }
+  } catch (e) { /* ignore */ }
+
+  // Load users table
+  try {
+    const r = await fetch("/admin/users");
+    if (r.ok) {
+      const {users} = await r.json();
+      const wrap = document.getElementById("userTableWrap");
+      if (!users.length) { wrap.innerHTML = "<p style='color:var(--muted);font-size:13px'>No users.</p>"; return; }
+      wrap.innerHTML = `<table class="users">
+        <thead><tr><th>ID</th><th>Username</th><th>Admin</th><th>Force PW change</th><th>Last login</th></tr></thead>
+        <tbody>${users.map(u => `<tr>
+          <td>${u.id}</td><td>${escapeHtml(u.username)}</td>
+          <td>${u.is_admin ? "Yes" : "No"}</td>
+          <td>${u.force_password_change ? "⚠ Yes" : "No"}</td>
+          <td>${u.last_login ? fmtDate(u.last_login) : "Never"}</td>
+        </tr>`).join("")}</tbody></table>`;
+    }
+  } catch (e) { /* ignore */ }
+}
+
+document.getElementById("changePwBtn").addEventListener("click", async () => {
+  const cur = document.getElementById("curPw").value;
+  const nw = document.getElementById("newPw").value;
+  const nw2 = document.getElementById("newPw2").value;
+  if (!cur || !nw) { adminMsg("changePwMsg", "Fill in all fields.", true); return; }
+  if (nw !== nw2) { adminMsg("changePwMsg", "New passwords do not match.", true); return; }
+  if (nw.length < 8) { adminMsg("changePwMsg", "New password must be at least 8 characters.", true); return; }
+  const r = await fetch("/admin/password", {
+    method: "PUT",
+    headers: {"Content-Type": "application/json"},
+    body: JSON.stringify({current_password: cur, new_password: nw}),
+  });
+  if (r.ok) {
+    adminMsg("changePwMsg", "Password updated.", false);
+    document.getElementById("curPw").value = "";
+    document.getElementById("newPw").value = "";
+    document.getElementById("newPw2").value = "";
+    document.getElementById("pwChangeBanner").classList.add("hidden");
+  } else {
+    const d = await r.json().catch(() => ({}));
+    adminMsg("changePwMsg", d.detail || "Failed to update password.", true);
+  }
+});
+
+document.getElementById("saveAdBtn").addEventListener("click", async () => {
+  const body = {
+    server: document.getElementById("adServer").value.trim(),
+    port: parseInt(document.getElementById("adPort").value) || 389,
+    use_tls: document.getElementById("adTls").checked,
+    base_dn: document.getElementById("adBaseDn").value.trim(),
+    bind_dn: document.getElementById("adBindDn").value.trim(),
+    bind_password: document.getElementById("adBindPw").value,
+    user_filter: document.getElementById("adUserFilter").value.trim(),
+    group_dn: document.getElementById("adGroupDn").value.trim(),
+  };
+  if (!body.server) { adminMsg("adMsg", "Server is required.", true); return; }
+  const r = await fetch("/admin/ad", {
+    method: "PUT",
+    headers: {"Content-Type": "application/json"},
+    body: JSON.stringify(body),
+  });
+  if (r.ok) {
+    adminMsg("adMsg", "AD configuration saved.", false);
+    document.getElementById("adBindPw").value = "";
+  } else {
+    const d = await r.json().catch(() => ({}));
+    adminMsg("adMsg", d.detail || "Failed to save.", true);
+  }
+});
+</script>
+
+<script>
 const $ = (s) => document.querySelector(s);
 const state = { domain: "", category: "", severity: "", region: "", q: "", sort: "date", offset: 0, savedOnly: false };
 let searchTimer = null, browseLoaded = false;
@@ -249,17 +519,9 @@ function toggleSaved(id) {
 }
 
 /* ---------- view switching ---------- */
-function show(view) {
-  const ov = view === "overview";
-  $("#overview").classList.toggle("hidden", !ov);
-  $("#browse").classList.toggle("hidden", ov);
-  $("#navOverview").classList.toggle("active", ov);
-  $("#navBrowse").classList.toggle("active", !ov);
-  if (!ov && !browseLoaded) { loadCategories().then(loadBrowse); browseLoaded = true; }
-}
 function jumpToBrowse(patch) {
   Object.assign(state, { domain:"", category:"", severity:"", region:"", q:"" }, patch, { offset: 0 });
-  show("browse");
+  showSection("browse");
   if (!browseLoaded) { loadCategories().then(() => { syncControls(); loadBrowse(); }); browseLoaded = true; }
   else { syncControls(); loadBrowse(); }
 }
@@ -409,8 +671,12 @@ async function loadBrowse(append = false) {
 }
 
 /* ---------- controls ---------- */
-$("#navOverview").addEventListener("click", () => show("overview"));
-$("#navBrowse").addEventListener("click", () => show("browse"));
+$("#navOverview").addEventListener("click", () => showSection("overview"));
+$("#navBrowse").addEventListener("click", () => {
+  showSection("browse");
+  if (!browseLoaded) { loadCategories().then(loadBrowse); browseLoaded = true; }
+});
+$("#navAdmin").addEventListener("click", () => showSection("admin"));
 $("#domainChips").addEventListener("click", e => {
   if (!e.target.classList.contains("chip")) return;
   $("#domainChips").querySelectorAll(".chip").forEach(c => c.classList.remove("active"));
@@ -479,9 +745,9 @@ async function loadHealth() {
 }
 
 /* ---------- init ---------- */
-loadOverview();
-loadWatchlists();
-loadHealth();
+checkAuth().then(authed => {
+  if (authed) { loadOverview(); loadWatchlists(); loadHealth(); }
+});
 </script>
 </body>
 </html>

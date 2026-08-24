@@ -15,9 +15,7 @@ Endpoints:
 """
 from __future__ import annotations
 
-import base64
 import os
-import secrets
 from contextlib import asynccontextmanager
 from datetime import datetime, timezone
 from pathlib import Path
@@ -28,49 +26,72 @@ from xml.sax.saxutils import escape as xml_escape
 from fastapi import BackgroundTasks, FastAPI, Query, Request
 from fastapi.responses import FileResponse, Response
 from fastapi.staticfiles import StaticFiles
+from pydantic import BaseModel
 from starlette.middleware.base import BaseHTTPMiddleware
 from starlette.responses import Response as StarletteResponse
 
 from . import config
 from .service import NewsService
-
-_AUTH_USER = os.environ.get("AUTH_USER", "").strip()
-_AUTH_PASS = os.environ.get("AUTH_PASS", "").strip()
-
-
-class _BasicAuthMiddleware(BaseHTTPMiddleware):
-    def __init__(self, app, user: str, password: str):
-        super().__init__(app)
-        self._user = user
-        self._pass = password
-
-    async def dispatch(self, request: Request, call_next):
-        # Health endpoint is always open so container probes work without credentials.
-        if request.url.path == "/api/health":
-            return await call_next(request)
-        auth = request.headers.get("Authorization", "")
-        if auth.startswith("Basic "):
-            try:
-                user, _, pw = base64.b64decode(auth[6:]).decode().partition(":")
-                if secrets.compare_digest(user, self._user) and secrets.compare_digest(pw, self._pass):
-                    return await call_next(request)
-            except Exception:  # noqa: BLE001
-                pass
-        return StarletteResponse(
-            status_code=401,
-            headers={"WWW-Authenticate": 'Basic realm="cyber-ai-news"'},
-        )
+from .storage import Storage
+from .auth import verify_password, hash_password, create_session_token, verify_session_token
+from .ldap_auth import verify_ldap
 
 ROOT = Path(__file__).resolve().parent.parent
 WEB_DIR = ROOT / "web"
 
+_OPEN_API_PATHS = {"/api/health", "/auth/login", "/auth/logout", "/auth/me"}
+
+
+class _SessionAuthMiddleware(BaseHTTPMiddleware):
+    async def dispatch(self, request: Request, call_next):
+        path = request.url.path
+        needs_auth = path.startswith("/api/") or path.startswith("/admin/")
+        if not needs_auth or path in _OPEN_API_PATHS:
+            return await call_next(request)
+
+        token = request.cookies.get("session")
+        user_id = verify_session_token(token) if token else None
+        if user_id is None:
+            return StarletteResponse(
+                status_code=401,
+                content='{"detail":"Not authenticated"}',
+                headers={"Content-Type": "application/json"},
+            )
+
+        db: Storage = request.app.state.auth_db
+        user = db.get_user_by_id(user_id)
+        if user is None:
+            return StarletteResponse(
+                status_code=401,
+                content='{"detail":"Session invalid"}',
+                headers={"Content-Type": "application/json"},
+            )
+        request.state.user = user
+        return await call_next(request)
+
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
+    # Shared Storage instance for user/auth operations
+    settings = config.load_settings()
+    db_file = settings.get("storage", {}).get("db_file", "data/news.db")
+    app.state.auth_db = Storage(ROOT / db_file)
+
+    # Bootstrap admin account from env vars if no users exist yet
+    auth_user = os.environ.get("AUTH_USER", "").strip()
+    auth_pass = os.environ.get("AUTH_PASS", "").strip()
+    db: Storage = app.state.auth_db
+    if auth_user and auth_pass and not db.has_any_users():
+        db.create_user(auth_user, hash_password(auth_pass), is_admin=True,
+                       force_password_change=True)
+        print(f"[api] bootstrap admin account created: {auth_user!r} (change password on first login)")
+
     from . import scheduler  # noqa: PLC0415
     if scheduler.start_background():
         print("[api] background scheduler started (schedule.enabled=true)")
     yield
     scheduler.stop_background()
+    app.state.auth_db.close()
 
 
 app = FastAPI(
@@ -79,12 +100,10 @@ app = FastAPI(
     version="0.1.0",
     lifespan=lifespan,
 )
+app.add_middleware(_SessionAuthMiddleware)
 
-# Optional built-in basic auth — active when AUTH_USER + AUTH_PASS are both set.
-# Use this when running the container directly (without a proxy handling auth).
-# /api/health is always open so healthcheck probes work without credentials.
-if _AUTH_USER and _AUTH_PASS:
-    app.add_middleware(_BasicAuthMiddleware, user=_AUTH_USER, password=_AUTH_PASS)
+from .admin import router as admin_router  # noqa: E402
+app.include_router(admin_router)
 
 # In-memory refresh status (single-process; fine for the dashboard).
 _refresh_state: dict = {"running": False, "last_finished": None, "last_error": None}
@@ -92,6 +111,72 @@ _refresh_state: dict = {"running": False, "last_finished": None, "last_error": N
 
 def _svc() -> NewsService:
     return NewsService()
+
+
+# ---------------------------------------------------------------------------
+# Auth
+# ---------------------------------------------------------------------------
+
+class _LoginRequest(BaseModel):
+    username: str
+    password: str
+
+
+@app.post("/auth/login")
+def auth_login(body: _LoginRequest, request: Request):
+    db: Storage = request.app.state.auth_db
+    user = db.get_user_by_username(body.username)
+
+    # 1. Local auth — password_hash must be a real bcrypt hash (not the LDAP sentinel)
+    if user and user.get("auth_source", "local") == "local" and \
+            verify_password(body.password, user["password_hash"]):
+        db.update_user_last_login(user["id"])
+        token = create_session_token(user["id"])
+        resp = Response(content='{"ok":true}', media_type="application/json")
+        resp.set_cookie("session", token, httponly=True, samesite="lax", max_age=8 * 3600)
+        return resp
+
+    # 2. LDAP auth — try if AD config is present
+    ad_cfg = db.get_ad_config()
+    if ad_cfg and ad_cfg.get("server"):
+        user_dn, is_admin = verify_ldap(ad_cfg, body.username, body.password)
+        if user_dn:
+            user_id = db.upsert_ldap_user(body.username, is_admin)
+            db.update_user_last_login(user_id)
+            token = create_session_token(user_id)
+            resp = Response(content='{"ok":true}', media_type="application/json")
+            resp.set_cookie("session", token, httponly=True, samesite="lax", max_age=8 * 3600)
+            return resp
+
+    return Response(status_code=401, content='{"detail":"Invalid credentials"}',
+                    media_type="application/json")
+
+
+@app.post("/auth/logout")
+def auth_logout():
+    resp = Response(content='{"ok":true}', media_type="application/json")
+    resp.delete_cookie("session")
+    return resp
+
+
+@app.get("/auth/me")
+def auth_me(request: Request):
+    token = request.cookies.get("session")
+    user_id = verify_session_token(token) if token else None
+    if user_id is None:
+        return Response(status_code=401, content='{"detail":"Not authenticated"}',
+                        media_type="application/json")
+    db: Storage = request.app.state.auth_db
+    user = db.get_user_by_id(user_id)
+    if user is None:
+        return Response(status_code=401, content='{"detail":"Session invalid"}',
+                        media_type="application/json")
+    return {
+        "id": user["id"],
+        "username": user["username"],
+        "is_admin": bool(user["is_admin"]),
+        "force_password_change": bool(user["force_password_change"]),
+    }
 
 
 # ---------------------------------------------------------------------------

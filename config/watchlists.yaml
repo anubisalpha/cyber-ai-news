@@ -49,3 +49,145 @@ watchlists:
     label: AI Model Releases
     filters: {domain: ai, category: model_releases}
     alert: false
+
+  # ---------------------------------------------------------------------------
+  # WFC software inventory watchlists
+  # ---------------------------------------------------------------------------
+
+  # Infrastructure / Hypervisors
+  - name: proxmox
+    label: Proxmox VE
+    filters: {q: proxmox}
+    alert: true
+
+  - name: vmware
+    label: VMware vCenter / ESXi
+    filters: {q: vmware}
+    alert: true
+
+  # Network
+  - name: pfsense
+    label: pfSense
+    filters: {q: pfsense}
+    alert: true
+
+  # Monitoring & Security
+  - name: zabbix
+    label: Zabbix
+    filters: {q: zabbix}
+    alert: true
+
+  - name: wazuh
+    label: Wazuh
+    filters: {q: wazuh}
+    alert: true
+
+  - name: grafana
+    label: Grafana
+    filters: {q: grafana}
+    alert: true
+
+  - name: clamav
+    label: ClamAV
+    filters: {q: clamav}
+    alert: false
+
+  - name: nuclei
+    label: Nuclei
+    filters: {q: nuclei}
+    alert: false
+
+  - name: owasp-zap
+    label: OWASP ZAP
+    filters: {q: "owasp zap"}
+    alert: false
+
+  - name: retirejs
+    label: Retire.js
+    filters: {q: "retire.js"}
+    alert: false
+
+  # Directory & Identity
+  - name: windows-server-ad
+    label: Windows Server / Active Directory
+    filters: {q: "active directory"}
+    alert: true
+
+  - name: windows-server
+    label: Windows Server
+    filters: {q: "windows server"}
+    alert: true
+
+  - name: windows-11
+    label: Windows 11 Pro
+    filters: {q: "windows 11"}
+    alert: true
+
+  # Web / App Platform
+  - name: nginx
+    label: Nginx
+    filters: {q: nginx}
+    alert: true
+
+  - name: apache2
+    label: Apache2
+    filters: {q: apache}
+    alert: true
+
+  - name: php
+    label: PHP
+    filters: {q: php}
+    alert: true
+
+  - name: nodejs
+    label: Node.js
+    filters: {q: "node.js"}
+    alert: false
+
+  - name: docker
+    label: Docker
+    filters: {q: docker}
+    alert: true
+
+  # Databases
+  - name: postgresql
+    label: PostgreSQL
+    filters: {q: postgresql}
+    alert: false
+
+  - name: mariadb
+    label: MariaDB
+    filters: {q: mariadb}
+    alert: true
+
+  - name: sqlite
+    label: SQLite
+    filters: {q: sqlite}
+    alert: false
+
+  # DevOps / Tools
+  - name: gitlab
+    label: GitLab CE
+    filters: {q: gitlab}
+    alert: true
+
+  - name: terraform
+    label: Terraform
+    filters: {q: terraform}
+    alert: false
+
+  # Collaboration / ITSM
+  - name: glpi
+    label: GLPi
+    filters: {q: glpi}
+    alert: false
+
+  - name: atlassian
+    label: Confluence / Jira
+    filters: {q: atlassian}
+    alert: true
+
+  - name: postfix
+    label: Postfix
+    filters: {q: postfix}
+    alert: false
