@@ -15,20 +15,46 @@ Endpoints:
 """
 from __future__ import annotations
 
+import base64
+import os
+import secrets
+from contextlib import asynccontextmanager
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Optional
-
-from contextlib import asynccontextmanager
 from email.utils import format_datetime
 from xml.sax.saxutils import escape as xml_escape
 
 from fastapi import BackgroundTasks, FastAPI, Query, Request
 from fastapi.responses import FileResponse, Response
 from fastapi.staticfiles import StaticFiles
+from starlette.middleware.base import BaseHTTPMiddleware
+from starlette.responses import Response as StarletteResponse
 
 from . import config
 from .service import NewsService
+
+_AUTH_USER = os.environ.get("AUTH_USER", "").strip()
+_AUTH_PASS = os.environ.get("AUTH_PASS", "").strip()
+
+
+class _BasicAuthMiddleware(BaseHTTPMiddleware):
+    async def dispatch(self, request: Request, call_next):
+        # Health endpoint is always open so container probes work without credentials.
+        if request.url.path == "/api/health":
+            return await call_next(request)
+        auth = request.headers.get("Authorization", "")
+        if auth.startswith("Basic "):
+            try:
+                user, _, pw = base64.b64decode(auth[6:]).decode().partition(":")
+                if secrets.compare_digest(user, _AUTH_USER) and secrets.compare_digest(pw, _AUTH_PASS):
+                    return await call_next(request)
+            except Exception:  # noqa: BLE001
+                pass
+        return StarletteResponse(
+            status_code=401,
+            headers={"WWW-Authenticate": 'Basic realm="cyber-ai-news"'},
+        )
 
 ROOT = Path(__file__).resolve().parent.parent
 WEB_DIR = ROOT / "web"
@@ -48,6 +74,12 @@ app = FastAPI(
     version="0.1.0",
     lifespan=lifespan,
 )
+
+# Optional built-in basic auth — active when AUTH_USER + AUTH_PASS are both set.
+# Use this when running the container directly (without a proxy handling auth).
+# /api/health is always open so healthcheck probes work without credentials.
+if _AUTH_USER and _AUTH_PASS:
+    app.add_middleware(_BasicAuthMiddleware)
 
 # In-memory refresh status (single-process; fine for the dashboard).
 _refresh_state: dict = {"running": False, "last_finished": None, "last_error": None}

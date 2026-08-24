@@ -1,35 +1,43 @@
+# Two deployment modes:
+#
+#   With Caddy (default) — Caddy handles TLS + basic auth; the app is internal-only.
+#     Set BASIC_AUTH_USER + BASIC_AUTH_HASH (bcrypt) in .env. Leave AUTH_USER/AUTH_PASS blank.
+#     docker compose up -d
+#
+#   Without Caddy — remove or comment out the caddy service below, then publish the
+#     app's port directly and set AUTH_USER + AUTH_PASS in .env for built-in basic auth.
+#     docker compose up -d news
+
 services:
   news:
     build: .
     image: cyber-ai-news:latest
-    # Not published directly — only the caddy proxy can reach it (basic auth).
+    # When running with Caddy: keep expose only (caddy proxies; app is internal).
+    # When running without Caddy: change to ports: ["8000:8000"] and remove caddy below.
     expose:
       - "8000"
-    # SMTP_* / GOOGLE_API_KEY / MAIL_TO for email + LLM (see .env.example).
-    # Missing file is fine — the web service runs without it.
     env_file:
       - path: .env
         required: false
     volumes:
       # Persist the SQLite history across container restarts.
       - news-data:/app/data
-      # Edit config on the host (sources, watchlists, settings) without rebuilding;
-      # restart the container to pick up changes.
+      # Edit config on the host without rebuilding; restart to pick up changes.
       - ./config:/app/config:ro
     # ---- hardening ----
-    read_only: true            # immutable rootfs; app only writes to the data volume
+    read_only: true
     tmpfs:
       - /tmp
     security_opt:
       - no-new-privileges:true
     cap_drop:
       - ALL
-    # Bound resources so a runaway refresh can't starve the host.
     mem_limit: 512m
     pids_limit: 256
     restart: unless-stopped
 
-  # Reverse proxy + HTTP basic auth (and automatic HTTPS for a real domain).
+  # Optional reverse proxy with TLS + basic auth.
+  # Remove this service (and change expose → ports on news above) to run without it.
   caddy:
     image: caddy:2-alpine
     depends_on:
@@ -43,7 +51,7 @@ services:
         required: false
     volumes:
       - ./Caddyfile:/etc/caddy/Caddyfile:ro
-      - caddy-data:/data      # persisted TLS certs
+      - caddy-data:/data
       - caddy-config:/config
     security_opt:
       - no-new-privileges:true
