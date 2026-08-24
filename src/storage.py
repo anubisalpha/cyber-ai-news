@@ -91,6 +91,38 @@ class Storage:
                 last_login            TEXT
             );
 
+            CREATE TABLE IF NOT EXISTS sources (
+                name        TEXT PRIMARY KEY,
+                label       TEXT,
+                url         TEXT,
+                type        TEXT,
+                enabled     INTEGER NOT NULL DEFAULT 1,
+                domain      TEXT,
+                weight      INTEGER DEFAULT 50,
+                tags        TEXT,
+                created_at  TEXT,
+                updated_at  TEXT,
+                created_by  TEXT
+            );
+
+            CREATE TABLE IF NOT EXISTS source_changes (
+                id          INTEGER PRIMARY KEY AUTOINCREMENT,
+                changed_at  TEXT,
+                changed_by  TEXT,
+                source_name TEXT,
+                action      TEXT,
+                detail      TEXT
+            );
+            CREATE INDEX IF NOT EXISTS idx_sc_source ON source_changes(source_name);
+            CREATE INDEX IF NOT EXISTS idx_sc_time   ON source_changes(changed_at);
+
+            CREATE TABLE IF NOT EXISTS user_sources (
+                user_id     INTEGER NOT NULL,
+                source_name TEXT NOT NULL,
+                enabled_at  TEXT,
+                PRIMARY KEY (user_id, source_name)
+            );
+
             CREATE TABLE IF NOT EXISTS ad_config (
                 id            INTEGER PRIMARY KEY CHECK (id = 1),
                 server        TEXT,
@@ -105,12 +137,16 @@ class Storage:
             );
             """
         )
-        # Add auth_source column if this DB was created before it existed
-        try:
-            self.conn.execute("ALTER TABLE users ADD COLUMN auth_source TEXT NOT NULL DEFAULT 'local'")
-            self.conn.commit()
-        except Exception:  # column already exists — ignore
-            pass
+        # Schema migrations for columns added after initial release
+        for stmt in [
+            "ALTER TABLE users ADD COLUMN auth_source TEXT NOT NULL DEFAULT 'local'",
+            "ALTER TABLE users ADD COLUMN email TEXT",
+        ]:
+            try:
+                self.conn.execute(stmt)
+                self.conn.commit()
+            except Exception:
+                pass
 
     # ---- (de)serialisation ----------------------------------------------
     @staticmethod
@@ -172,6 +208,7 @@ class Storage:
         self,
         domain=None, category=None, severity=None, region=None,
         source=None, q=None, sort="date", limit=50, offset=0,
+        source_list: list[str] | None = None,
     ) -> tuple[list[Article], int]:
         where, params = [], []
         if domain:
@@ -192,6 +229,12 @@ class Storage:
         if q:
             where.append("(title LIKE ? OR summary LIKE ?)")
             params.extend([f"%{q}%", f"%{q}%"])
+        if source_list is not None:
+            if not source_list:
+                return [], 0  # user has no sources selected — empty result
+            placeholders = ",".join("?" * len(source_list))
+            where.append(f"source IN ({placeholders})")
+            params.extend(source_list)
 
         clause = ("WHERE " + " AND ".join(where)) if where else ""
         order = ("weight DESC, published DESC" if sort == "weight"
@@ -324,18 +367,20 @@ class Storage:
         self.conn.commit()
         return cur.lastrowid
 
-    def upsert_ldap_user(self, username: str, is_admin: bool) -> int:
+    def upsert_ldap_user(self, username: str, is_admin: bool, email: str | None = None) -> int:
         """Create or update an LDAP-provisioned user; returns their id."""
-        now = datetime.now(timezone.utc).isoformat()
         existing = self.get_user_by_username(username)
         if existing:
             self.conn.execute(
-                "UPDATE users SET is_admin=?, auth_source='ldap' WHERE id=?",
-                (1 if is_admin else 0, existing["id"]),
+                "UPDATE users SET is_admin=?, auth_source='ldap', email=COALESCE(?,email) WHERE id=?",
+                (1 if is_admin else 0, email, existing["id"]),
             )
             self.conn.commit()
             return existing["id"]
-        return self.create_user(username, "LDAP", is_admin=is_admin, auth_source="ldap")
+        user_id = self.create_user(username, "LDAP", is_admin=is_admin, auth_source="ldap")
+        if email:
+            self.update_user_email(user_id, email)
+        return user_id
 
     def get_user_by_username(self, username: str) -> dict | None:
         row = self.conn.execute("SELECT * FROM users WHERE username=?", (username,)).fetchone()
@@ -368,6 +413,112 @@ class Storage:
         row = self.conn.execute("SELECT * FROM ad_config WHERE id=1").fetchone()
         return dict(row) if row else None
 
+    def update_user_email(self, user_id: int, email: str) -> None:
+        self.conn.execute("UPDATE users SET email=? WHERE id=?", (email, user_id))
+        self.conn.commit()
+
+    # ---- sources (DB-managed feed registry) -----------------------------
+    def has_any_sources(self) -> bool:
+        return self.conn.execute("SELECT 1 FROM sources LIMIT 1").fetchone() is not None
+
+    def seed_sources(self, sources: list[dict], created_by: str = "system") -> None:
+        now = datetime.now(timezone.utc).isoformat()
+        for s in sources:
+            self.conn.execute(
+                """INSERT OR IGNORE INTO sources
+                   (name,label,url,type,enabled,domain,weight,tags,created_at,updated_at,created_by)
+                   VALUES (?,?,?,?,?,?,?,?,?,?,?)""",
+                (s.get("name"), s.get("label", s.get("name")), s.get("url", ""),
+                 s.get("type", "rss"), 1 if s.get("enabled", True) else 0,
+                 s.get("domain", "both"), s.get("weight", 50),
+                 json.dumps(s.get("tags", [])), now, now, created_by),
+            )
+        self.conn.commit()
+
+    def list_sources(self, enabled_only: bool = False) -> list[dict]:
+        sql = "SELECT * FROM sources"
+        if enabled_only:
+            sql += " WHERE enabled=1"
+        sql += " ORDER BY weight DESC, name"
+        return [dict(r) for r in self.conn.execute(sql).fetchall()]
+
+    def get_source(self, name: str) -> dict | None:
+        row = self.conn.execute("SELECT * FROM sources WHERE name=?", (name,)).fetchone()
+        return dict(row) if row else None
+
+    def create_source(self, data: dict, created_by: str) -> None:
+        now = datetime.now(timezone.utc).isoformat()
+        self.conn.execute(
+            """INSERT INTO sources (name,label,url,type,enabled,domain,weight,tags,created_at,updated_at,created_by)
+               VALUES (?,?,?,?,?,?,?,?,?,?,?)""",
+            (data["name"], data.get("label", data["name"]), data.get("url", ""),
+             data.get("type", "rss"), 1 if data.get("enabled", True) else 0,
+             data.get("domain", "both"), data.get("weight", 50),
+             json.dumps(data.get("tags", [])), now, now, created_by),
+        )
+        self._log_source_change(data["name"], "add", created_by, data)
+        self.conn.commit()
+
+    def update_source(self, name: str, changes: dict, changed_by: str) -> bool:
+        existing = self.get_source(name)
+        if not existing:
+            return False
+        now = datetime.now(timezone.utc).isoformat()
+        allowed = {"label", "url", "type", "enabled", "domain", "weight", "tags"}
+        sets, vals = [], []
+        for k, v in changes.items():
+            if k in allowed:
+                sets.append(f"{k}=?")
+                vals.append(json.dumps(v) if k == "tags" else v)
+        if not sets:
+            return True
+        sets.append("updated_at=?")
+        vals.append(now)
+        vals.append(name)
+        self.conn.execute(f"UPDATE sources SET {', '.join(sets)} WHERE name=?", vals)
+        self._log_source_change(name, "edit", changed_by, changes)
+        self.conn.commit()
+        return True
+
+    def delete_source(self, name: str, changed_by: str) -> bool:
+        existing = self.get_source(name)
+        if not existing:
+            return False
+        self._log_source_change(name, "delete", changed_by, {})
+        self.conn.execute("DELETE FROM sources WHERE name=?", (name,))
+        self.conn.execute("DELETE FROM user_sources WHERE source_name=?", (name,))
+        self.conn.commit()
+        return True
+
+    def _log_source_change(self, name: str, action: str, by: str, detail: dict) -> None:
+        self.conn.execute(
+            "INSERT INTO source_changes (changed_at,changed_by,source_name,action,detail) VALUES (?,?,?,?,?)",
+            (datetime.now(timezone.utc).isoformat(), by, name, action, json.dumps(detail)),
+        )
+
+    def source_changelog(self, limit: int = 100) -> list[dict]:
+        cur = self.conn.execute(
+            "SELECT * FROM source_changes ORDER BY changed_at DESC LIMIT ?", (limit,)
+        )
+        return [dict(r) for r in cur.fetchall()]
+
+    # ---- user source selection ------------------------------------------
+    def get_user_sources(self, user_id: int) -> list[str]:
+        cur = self.conn.execute(
+            "SELECT source_name FROM user_sources WHERE user_id=?", (user_id,)
+        )
+        return [r[0] for r in cur.fetchall()]
+
+    def set_user_sources(self, user_id: int, source_names: list[str]) -> None:
+        now = datetime.now(timezone.utc).isoformat()
+        self.conn.execute("DELETE FROM user_sources WHERE user_id=?", (user_id,))
+        self.conn.executemany(
+            "INSERT INTO user_sources (user_id, source_name, enabled_at) VALUES (?,?,?)",
+            [(user_id, name, now) for name in source_names],
+        )
+        self.conn.commit()
+
+    # ---- AD config -------------------------------------------------------
     def upsert_ad_config(self, **fields) -> None:
         now = datetime.now(timezone.utc).isoformat()
         fields["updated_at"] = now

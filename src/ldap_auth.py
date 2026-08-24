@@ -5,10 +5,10 @@ import ldap3
 from ldap3.core.exceptions import LDAPException
 
 
-def verify_ldap(cfg: dict, username: str, password: str) -> tuple[str | None, bool]:
+def verify_ldap(cfg: dict, username: str, password: str) -> tuple[str | None, bool, str | None]:
     """Attempt LDAP bind for the given username/password.
 
-    Returns (user_dn, is_admin) on success, (None, False) on failure.
+    Returns (user_dn, is_admin, email) on success, (None, False, None) on failure.
 
     login_group (stored as user_filter): user must be a member to log in at all.
     group_dn: membership grants admin rights.
@@ -23,7 +23,7 @@ def verify_ldap(cfg: dict, username: str, password: str) -> tuple[str | None, bo
     admin_group = (cfg.get("group_dn") or "").strip()      # group DN — members get admin rights
 
     if not server_host or not base_dn:
-        return None, False
+        return None, False, None
 
     try:
         tls = ldap3.Tls() if use_tls else None
@@ -34,12 +34,14 @@ def verify_ldap(cfg: dict, username: str, password: str) -> tuple[str | None, bo
         conn = ldap3.Connection(server, user=bind_dn or None, password=bind_password or None,
                                 auto_bind=True, raise_exceptions=True)
         user_filter = f"(sAMAccountName={_escape(username)})"
-        conn.search(base_dn, user_filter, attributes=["distinguishedName"])
+        conn.search(base_dn, user_filter, attributes=["distinguishedName", "mail"])
         if not conn.entries:
             conn.unbind()
-            return None, False
+            return None, False, None
 
         user_dn = str(conn.entries[0].distinguishedName)
+        mail_attr = conn.entries[0].mail
+        email = str(mail_attr) if mail_attr and mail_attr.value else None
 
         # Login group check — if configured, user must be a member
         if login_group:
@@ -51,7 +53,7 @@ def verify_ldap(cfg: dict, username: str, password: str) -> tuple[str | None, bo
             )
             if not conn.entries:
                 conn.unbind()
-                return None, False
+                return None, False, None
 
         conn.unbind()
 
@@ -71,10 +73,10 @@ def verify_ldap(cfg: dict, username: str, password: str) -> tuple[str | None, bo
             is_admin = bool(user_conn.entries)
 
         user_conn.unbind()
-        return user_dn, is_admin
+        return user_dn, is_admin, email
 
     except (LDAPException, Exception):  # noqa: BLE001
-        return None, False
+        return None, False, None
 
 
 def _escape(value: str) -> str:

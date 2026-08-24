@@ -146,7 +146,7 @@
   #pwChangeBanner a { color: var(--accent); cursor: pointer; text-decoration: underline; }
 
   /* ---------- Admin panel ---------- */
-  #adminSection { padding: 20px; max-width: 760px; margin: 0 auto; }
+  #adminSection { padding: 20px; max-width: 900px; margin: 0 auto; }
   #adminSection h2 { font-size: 17px; margin: 0 0 20px; }
   .admin-card { background: var(--panel); border: 1px solid var(--border); border-radius: 10px;
                 padding: 20px; margin-bottom: 16px; }
@@ -163,6 +163,40 @@
   table.users { width: 100%; border-collapse: collapse; font-size: 13px; }
   table.users th, table.users td { text-align: left; padding: 8px 10px; border-bottom: 1px solid var(--border); }
   table.users th { color: var(--muted); font-weight: 600; }
+
+  /* ---------- Sources table ---------- */
+  table.sources { width: 100%; border-collapse: collapse; font-size: 13px; }
+  table.sources th, table.sources td { text-align: left; padding: 8px 10px; border-bottom: 1px solid var(--border); vertical-align: middle; }
+  table.sources th { color: var(--muted); font-weight: 600; }
+  table.sources .actions { display: flex; gap: 6px; flex-wrap: wrap; }
+  table.sources .actions button { padding: 3px 9px; font-size: 12px; margin-top: 0; }
+  .src-disabled { opacity: .5; }
+  .src-form { background: var(--panel-2); border: 1px solid var(--border); border-radius: 8px;
+              padding: 16px; margin-top: 12px; }
+  .src-form label { display: block; font-size: 13px; color: var(--muted); margin: 8px 0 3px; }
+  .src-form input, .src-form select { width: 100%; padding: 7px 9px; border-radius: 6px;
+    border: 1px solid var(--border); background: var(--panel); color: var(--text); font: inherit; }
+  .src-form-row { display: flex; gap: 12px; flex-wrap: wrap; }
+  .src-form-row > div { flex: 1; min-width: 120px; }
+  .changelog-list { list-style: none; padding: 0; margin: 0; font-size: 12px; }
+  .changelog-list li { padding: 5px 0; border-bottom: 1px solid var(--border); color: var(--muted); }
+  .changelog-list li span.cl-who { color: var(--accent); }
+  .changelog-list li span.cl-src { font-weight: 600; color: var(--text); }
+
+  /* ---------- My Feeds ---------- */
+  #myFeedsSection { padding: 20px; max-width: 760px; margin: 0 auto; }
+  #myFeedsSection h2 { font-size: 17px; margin: 0 0 4px; }
+  #myFeedsSection p { color: var(--muted); font-size: 13px; margin: 0 0 16px; }
+  .feeds-toolbar { display: flex; gap: 8px; margin-bottom: 14px; align-items: center; flex-wrap: wrap; }
+  .feeds-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 10px; margin-bottom: 16px; }
+  .feed-item { background: var(--panel); border: 1px solid var(--border); border-radius: 8px;
+               padding: 12px 14px; display: flex; align-items: flex-start; gap: 10px; cursor: pointer; }
+  .feed-item:hover { border-color: var(--accent); }
+  .feed-item input[type=checkbox] { margin-top: 3px; flex-shrink: 0; width: 15px; height: 15px; cursor: pointer; }
+  .feed-item .feed-info { flex: 1; }
+  .feed-item .feed-name { font-size: 14px; font-weight: 600; }
+  .feed-item .feed-meta { font-size: 11px; color: var(--muted); margin-top: 2px; }
+  .feed-item.feed-selected { border-color: var(--accent); background: color-mix(in srgb, var(--accent) 8%, var(--panel)); }
 </style>
 </head>
 <body>
@@ -189,6 +223,7 @@
   <nav>
     <button id="navOverview" class="active">Overview</button>
     <button id="navBrowse">Browse</button>
+    <button id="navMyFeeds">My Feeds</button>
     <button id="navAdmin" class="hidden">Admin</button>
   </nav>
   <span class="stats" id="headerStats"></span>
@@ -220,6 +255,19 @@
     <div class="card"><h3>⚠ Critical &amp; actively exploited</h3><div id="ovCritical"></div></div>
     <div class="card"><h3>AI × Cyber</h3><div id="ovInter"></div></div>
   </div>
+</section>
+
+<!-- ============ MY FEEDS ============ -->
+<section id="myFeedsSection" class="hidden">
+  <h2>My Feeds</h2>
+  <p>Select the sources you want to see in Overview and Browse. Deselecting all shows everything.</p>
+  <div class="feeds-toolbar">
+    <button id="feedsSelectAll">Select all</button>
+    <button id="feedsDeselectAll">Deselect all</button>
+    <button class="primary" id="feedsSave">Save selection</button>
+    <span id="feedsMsg" class="admin-msg" style="margin-top:0"></span>
+  </div>
+  <div class="feeds-grid" id="feedsGrid"></div>
 </section>
 
 <!-- ============ ADMIN ============ -->
@@ -268,6 +316,62 @@
   <div class="admin-card">
     <h3>Users</h3>
     <div id="userTableWrap"></div>
+  </div>
+
+  <div class="admin-card" id="adminFeedsCard">
+    <h3>Feed Management</h3>
+    <div style="display:flex;gap:8px;align-items:center;margin-bottom:12px;flex-wrap:wrap">
+      <button class="primary" id="addSourceBtn">+ Add source</button>
+      <span id="sourcesMsg" class="admin-msg" style="margin-top:0"></span>
+    </div>
+
+    <!-- Add/Edit source form (hidden by default) -->
+    <div class="src-form hidden" id="srcForm">
+      <input type="hidden" id="srcFormMode" value="add" />
+      <div class="src-form-row">
+        <div>
+          <label>Name (unique slug)</label>
+          <input type="text" id="srcName" placeholder="ncsc-alerts" />
+        </div>
+        <div>
+          <label>Label</label>
+          <input type="text" id="srcLabel" placeholder="NCSC Alerts" />
+        </div>
+      </div>
+      <label>URL</label>
+      <input type="text" id="srcUrl" placeholder="https://www.ncsc.gov.uk/api/1/services/guidance/all.json" />
+      <div class="src-form-row" style="margin-top:4px">
+        <div>
+          <label>Type</label>
+          <select id="srcType"><option value="rss">RSS</option><option value="json">JSON</option></select>
+        </div>
+        <div>
+          <label>Domain</label>
+          <select id="srcDomain">
+            <option value="cyber">Cyber</option>
+            <option value="ai">AI</option>
+            <option value="both">Both</option>
+          </select>
+        </div>
+        <div>
+          <label>Weight (0-100)</label>
+          <input type="number" id="srcWeight" value="50" min="0" max="100" />
+        </div>
+      </div>
+      <label>Tags (comma-separated)</label>
+      <input type="text" id="srcTags" placeholder="uk, ncsc, alerts" />
+      <div style="display:flex;gap:8px;margin-top:12px">
+        <button class="primary" id="srcFormSave">Save</button>
+        <button id="srcFormCancel">Cancel</button>
+      </div>
+    </div>
+
+    <div id="sourcesTableWrap" style="overflow-x:auto"></div>
+
+    <details style="margin-top:16px">
+      <summary style="cursor:pointer;color:var(--muted);font-size:13px">Change log</summary>
+      <ul class="changelog-list" id="changelogList" style="margin-top:8px"></ul>
+    </details>
   </div>
 </section>
 
@@ -366,19 +470,21 @@ document.getElementById("logoutBtn").addEventListener("click", async () => {
   document.getElementById("loginOverlay").classList.remove("hidden");
   document.getElementById("navAdmin").classList.add("hidden");
   document.getElementById("pwChangeBanner").classList.add("hidden");
+  showSection("overview");
 });
 
 document.getElementById("goToAdminPw").addEventListener("click", () => showSection("admin"));
 
-/* ===== ADMIN ===== */
+/* ===== SECTION SWITCHING ===== */
 function showSection(name) {
-  ["overview","browse","adminSection"].forEach(id =>
-    document.getElementById(id).classList.toggle("hidden", id !== (name === "admin" ? "adminSection" : name)));
-  ["navOverview","navBrowse","navAdmin"].forEach(id => {
-    const map = {navOverview:"overview",navBrowse:"browse",navAdmin:"admin"};
-    document.getElementById(id).classList.toggle("active", map[id] === name);
-  });
+  const sectionMap = {overview:"overview",browse:"browse",admin:"adminSection",myFeeds:"myFeedsSection"};
+  Object.values(sectionMap).forEach(id =>
+    document.getElementById(id).classList.toggle("hidden", id !== sectionMap[name]));
+  const navMap = {navOverview:"overview",navBrowse:"browse",navMyFeeds:"myFeeds",navAdmin:"admin"};
+  Object.entries(navMap).forEach(([btnId, sec]) =>
+    document.getElementById(btnId).classList.toggle("active", sec === name));
   if (name === "admin") loadAdminPanel();
+  if (name === "myFeeds") loadMyFeeds();
 }
 
 function adminMsg(elId, text, isErr) {
@@ -412,8 +518,8 @@ async function loadAdminPanel() {
     if (r.ok) {
       const {users} = await r.json();
       const wrap = document.getElementById("userTableWrap");
-      if (!users.length) { wrap.innerHTML = "<p style='color:var(--muted);font-size:13px'>No users.</p>"; return; }
-      wrap.innerHTML = `<table class="users">
+      if (!users.length) { wrap.innerHTML = "<p style='color:var(--muted);font-size:13px'>No users.</p>"; }
+      else wrap.innerHTML = `<table class="users">
         <thead><tr><th>ID</th><th>Username</th><th>Admin</th><th>Force PW change</th><th>Last login</th></tr></thead>
         <tbody>${users.map(u => `<tr>
           <td>${u.id}</td><td>${escapeHtml(u.username)}</td>
@@ -423,7 +529,221 @@ async function loadAdminPanel() {
         </tr>`).join("")}</tbody></table>`;
     }
   } catch (e) { /* ignore */ }
+
+  // Load sources table (admin feed management)
+  await loadAdminSources();
 }
+
+/* ===== ADMIN FEEDS ===== */
+let _adminSources = [];
+
+async function loadAdminSources() {
+  try {
+    const r = await fetch("/admin/sources");
+    if (!r.ok) return;
+    const {sources} = await r.json();
+    _adminSources = sources;
+    renderSourcesTable(sources);
+    loadChangelog();
+  } catch (e) { /* ignore */ }
+}
+
+function renderSourcesTable(sources) {
+  const wrap = document.getElementById("sourcesTableWrap");
+  if (!sources.length) {
+    wrap.innerHTML = "<p style='color:var(--muted);font-size:13px'>No sources configured.</p>";
+    return;
+  }
+  wrap.innerHTML = `<table class="sources">
+    <thead><tr><th>Name</th><th>Label</th><th>Type</th><th>Domain</th><th>Weight</th><th>Enabled</th><th>Actions</th></tr></thead>
+    <tbody>${sources.map(s => `<tr class="${s.enabled ? "" : "src-disabled"}">
+      <td><code>${escapeHtml(s.name)}</code></td>
+      <td>${escapeHtml(s.label || s.name)}</td>
+      <td>${escapeHtml(s.type || "")}</td>
+      <td>${escapeHtml(s.domain || "")}</td>
+      <td>${s.weight ?? 50}</td>
+      <td>${s.enabled ? "Yes" : "No"}</td>
+      <td class="actions">
+        <button onclick="editSource('${escapeHtml(s.name)}')">Edit</button>
+        <button onclick="toggleSource('${escapeHtml(s.name)}',${s.enabled})">${s.enabled ? "Disable" : "Enable"}</button>
+        <button onclick="deleteSource('${escapeHtml(s.name)}')" style="color:var(--crit)">Delete</button>
+      </td>
+    </tr>`).join("")}</tbody></table>`;
+}
+
+async function loadChangelog() {
+  try {
+    const r = await fetch("/admin/sources/changelog?limit=50");
+    if (!r.ok) return;
+    const {changelog} = await r.json();
+    const ul = document.getElementById("changelogList");
+    if (!changelog.length) { ul.innerHTML = "<li style='padding:4px 0'>No changes recorded yet.</li>"; return; }
+    ul.innerHTML = changelog.map(c =>
+      `<li><span class="cl-src">${escapeHtml(c.source_name)}</span> — ${escapeHtml(c.action)}
+       by <span class="cl-who">${escapeHtml(c.changed_by)}</span>
+       ${c.detail ? `(${escapeHtml(c.detail)})` : ""} · ${fmtDate(c.changed_at)}</li>`
+    ).join("");
+  } catch (e) { /* ignore */ }
+}
+
+function srcMsg(text, isErr) {
+  const el = document.getElementById("sourcesMsg");
+  el.textContent = text;
+  el.className = "admin-msg " + (isErr ? "err" : "ok");
+  if (!isErr) setTimeout(() => { el.textContent = ""; }, 4000);
+}
+
+function showSrcForm(mode, data) {
+  const form = document.getElementById("srcForm");
+  form.classList.remove("hidden");
+  document.getElementById("srcFormMode").value = mode;
+  document.getElementById("srcName").value = data?.name || "";
+  document.getElementById("srcName").disabled = mode === "edit";
+  document.getElementById("srcLabel").value = data?.label || "";
+  document.getElementById("srcUrl").value = data?.url || "";
+  document.getElementById("srcType").value = data?.type || "rss";
+  document.getElementById("srcDomain").value = data?.domain || "cyber";
+  document.getElementById("srcWeight").value = data?.weight ?? 50;
+  document.getElementById("srcTags").value = data?.tags || "";
+  form.scrollIntoView({behavior:"smooth", block:"nearest"});
+}
+
+document.getElementById("addSourceBtn").addEventListener("click", () => showSrcForm("add", null));
+document.getElementById("srcFormCancel").addEventListener("click", () => {
+  document.getElementById("srcForm").classList.add("hidden");
+});
+
+document.getElementById("srcFormSave").addEventListener("click", async () => {
+  const mode = document.getElementById("srcFormMode").value;
+  const name = document.getElementById("srcName").value.trim();
+  const url = document.getElementById("srcUrl").value.trim();
+  if (!url) { srcMsg("URL is required.", true); return; }
+  if (mode === "add" && !name) { srcMsg("Name is required.", true); return; }
+
+  const body = {
+    label: document.getElementById("srcLabel").value.trim(),
+    url,
+    type: document.getElementById("srcType").value,
+    domain: document.getElementById("srcDomain").value,
+    weight: parseInt(document.getElementById("srcWeight").value) || 50,
+    tags: document.getElementById("srcTags").value.trim(),
+  };
+
+  let r;
+  if (mode === "add") {
+    r = await fetch("/admin/sources", {
+      method: "POST",
+      headers: {"Content-Type":"application/json"},
+      body: JSON.stringify({name, ...body, enabled: true}),
+    });
+  } else {
+    r = await fetch(`/admin/sources/${encodeURIComponent(name)}`, {
+      method: "PUT",
+      headers: {"Content-Type":"application/json"},
+      body: JSON.stringify(body),
+    });
+  }
+  if (r.ok) {
+    srcMsg(mode === "add" ? "Source added." : "Source updated.", false);
+    document.getElementById("srcForm").classList.add("hidden");
+    await loadAdminSources();
+  } else {
+    const d = await r.json().catch(() => ({}));
+    srcMsg(d.detail || "Failed to save.", true);
+  }
+});
+
+function editSource(name) {
+  const src = _adminSources.find(s => s.name === name);
+  if (src) showSrcForm("edit", src);
+}
+
+async function toggleSource(name, currentlyEnabled) {
+  const r = await fetch(`/admin/sources/${encodeURIComponent(name)}`, {
+    method: "PUT",
+    headers: {"Content-Type":"application/json"},
+    body: JSON.stringify({enabled: !currentlyEnabled}),
+  });
+  if (r.ok) await loadAdminSources();
+  else srcMsg("Failed to update.", true);
+}
+
+async function deleteSource(name) {
+  if (!confirm(`Delete source "${name}"? This cannot be undone.`)) return;
+  const r = await fetch(`/admin/sources/${encodeURIComponent(name)}`, {method:"DELETE"});
+  if (r.ok) { srcMsg("Source deleted.", false); await loadAdminSources(); }
+  else srcMsg("Failed to delete.", true);
+}
+
+/* ===== MY FEEDS ===== */
+let _myFeedsSources = [];
+
+async function loadMyFeeds() {
+  try {
+    const r = await fetch("/user/sources");
+    if (!r.ok) return;
+    const data = await r.json();
+    _myFeedsSources = data.sources;
+    renderFeedsGrid(data.sources);
+  } catch (e) { /* ignore */ }
+}
+
+function renderFeedsGrid(sources) {
+  const grid = document.getElementById("feedsGrid");
+  if (!sources.length) {
+    grid.innerHTML = "<p style='color:var(--muted);font-size:13px'>No sources available.</p>";
+    return;
+  }
+  grid.innerHTML = sources.map(s => `
+    <label class="feed-item ${s.selected ? "feed-selected" : ""}">
+      <input type="checkbox" data-name="${escapeHtml(s.name)}" ${s.selected ? "checked" : ""} />
+      <div class="feed-info">
+        <div class="feed-name">${escapeHtml(s.label || s.name)}</div>
+        <div class="feed-meta">${escapeHtml(s.type || "rss")} · ${escapeHtml(s.domain || "")}</div>
+      </div>
+    </label>`).join("");
+
+  grid.querySelectorAll("input[type=checkbox]").forEach(cb => {
+    cb.addEventListener("change", () => {
+      const item = cb.closest(".feed-item");
+      item.classList.toggle("feed-selected", cb.checked);
+    });
+  });
+}
+
+document.getElementById("feedsSelectAll").addEventListener("click", () => {
+  document.querySelectorAll("#feedsGrid input[type=checkbox]").forEach(cb => {
+    cb.checked = true;
+    cb.closest(".feed-item").classList.add("feed-selected");
+  });
+});
+document.getElementById("feedsDeselectAll").addEventListener("click", () => {
+  document.querySelectorAll("#feedsGrid input[type=checkbox]").forEach(cb => {
+    cb.checked = false;
+    cb.closest(".feed-item").classList.remove("feed-selected");
+  });
+});
+
+document.getElementById("feedsSave").addEventListener("click", async () => {
+  const selected = [...document.querySelectorAll("#feedsGrid input[type=checkbox]:checked")]
+    .map(cb => cb.dataset.name);
+  const r = await fetch("/user/sources", {
+    method: "PUT",
+    headers: {"Content-Type":"application/json"},
+    body: JSON.stringify({sources: selected}),
+  });
+  const msgEl = document.getElementById("feedsMsg");
+  if (r.ok) {
+    msgEl.textContent = `Saved — ${selected.length} source${selected.length !== 1 ? "s" : ""} selected.`;
+    msgEl.className = "admin-msg ok";
+    setTimeout(() => { msgEl.textContent = ""; }, 4000);
+    // Refresh overview if it's visible
+    if (!document.getElementById("overview").classList.contains("hidden")) loadOverview();
+  } else {
+    msgEl.textContent = "Failed to save.";
+    msgEl.className = "admin-msg err";
+  }
+});
 
 document.getElementById("changePwBtn").addEventListener("click", async () => {
   const cur = document.getElementById("curPw").value;
@@ -676,6 +996,7 @@ $("#navBrowse").addEventListener("click", () => {
   showSection("browse");
   if (!browseLoaded) { loadCategories().then(loadBrowse); browseLoaded = true; }
 });
+$("#navMyFeeds").addEventListener("click", () => showSection("myFeeds"));
 $("#navAdmin").addEventListener("click", () => showSection("admin"));
 $("#domainChips").addEventListener("click", e => {
   if (!e.target.classList.contains("chip")) return;

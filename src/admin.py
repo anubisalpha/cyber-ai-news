@@ -83,3 +83,69 @@ def update_ad_config(body: AdConfigRequest, request: Request):
         fields.pop("bind_password", None)
     _db(request).upsert_ad_config(**fields)
     return {"ok": True}
+
+
+# ---------- source management (admin only) ------------------------------------
+
+class SourceCreateRequest(BaseModel):
+    name: str = Field(min_length=1, pattern=r"^[a-z0-9_-]+$")
+    label: str = ""
+    url: str = Field(min_length=1)
+    type: str = Field(default="rss", pattern=r"^(rss|json)$")
+    domain: str = Field(default="cyber", pattern=r"^(cyber|ai|both)$")
+    weight: int = Field(default=50, ge=0, le=100)
+    tags: str = ""
+    enabled: bool = True
+
+
+class SourceUpdateRequest(BaseModel):
+    label: str | None = None
+    url: str | None = None
+    type: str | None = Field(default=None, pattern=r"^(rss|json)$")
+    domain: str | None = Field(default=None, pattern=r"^(cyber|ai|both)$")
+    weight: int | None = Field(default=None, ge=0, le=100)
+    tags: str | None = None
+    enabled: bool | None = None
+
+
+@router.get("/sources")
+def list_sources(request: Request):
+    _require_admin(request)
+    return {"sources": _db(request).list_sources(enabled_only=False)}
+
+
+@router.post("/sources", status_code=201)
+def create_source(body: SourceCreateRequest, request: Request):
+    user = _require_admin(request)
+    db = _db(request)
+    if db.get_source(body.name):
+        raise HTTPException(status_code=409, detail="Source already exists")
+    db.create_source(body.model_dump(), created_by=user["username"])
+    return {"ok": True, "name": body.name}
+
+
+@router.put("/sources/{name}")
+def update_source(name: str, body: SourceUpdateRequest, request: Request):
+    user = _require_admin(request)
+    db = _db(request)
+    changes = {k: v for k, v in body.model_dump().items() if v is not None}
+    if not changes:
+        raise HTTPException(status_code=400, detail="No changes provided")
+    if not db.update_source(name, changes, changed_by=user["username"]):
+        raise HTTPException(status_code=404, detail="Source not found")
+    return {"ok": True}
+
+
+@router.delete("/sources/{name}", status_code=200)
+def delete_source(name: str, request: Request):
+    user = _require_admin(request)
+    db = _db(request)
+    if not db.delete_source(name, changed_by=user["username"]):
+        raise HTTPException(status_code=404, detail="Source not found")
+    return {"ok": True}
+
+
+@router.get("/sources/changelog")
+def source_changelog(request: Request, limit: int = 100):
+    _require_admin(request)
+    return {"changelog": _db(request).source_changelog(limit=limit)}

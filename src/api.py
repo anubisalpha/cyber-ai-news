@@ -86,6 +86,13 @@ async def lifespan(app: FastAPI):
                        force_password_change=True)
         print(f"[api] bootstrap admin account created: {auth_user!r} (change password on first login)")
 
+    # Seed sources table from sources.yaml on first run
+    if not db.has_any_sources():
+        yaml_sources = config.load_sources(enabled_only=False)
+        if yaml_sources:
+            db.seed_sources(yaml_sources)
+            print(f"[api] seeded {len(yaml_sources)} sources from sources.yaml")
+
     from . import scheduler  # noqa: PLC0415
     if scheduler.start_background():
         print("[api] background scheduler started (schedule.enabled=true)")
@@ -139,9 +146,9 @@ def auth_login(body: _LoginRequest, request: Request):
     # 2. LDAP auth — try if AD config is present
     ad_cfg = db.get_ad_config()
     if ad_cfg and ad_cfg.get("server"):
-        user_dn, is_admin = verify_ldap(ad_cfg, body.username, body.password)
+        user_dn, is_admin, email = verify_ldap(ad_cfg, body.username, body.password)
         if user_dn:
-            user_id = db.upsert_ldap_user(body.username, is_admin)
+            user_id = db.upsert_ldap_user(body.username, is_admin, email=email)
             db.update_user_last_login(user_id)
             token = create_session_token(user_id)
             resp = Response(content='{"ok":true}', media_type="application/json")
@@ -180,10 +187,51 @@ def auth_me(request: Request):
 
 
 # ---------------------------------------------------------------------------
+# User sources
+# ---------------------------------------------------------------------------
+
+class _UserSourcesRequest(BaseModel):
+    sources: list[str]
+
+
+@app.get("/user/sources")
+def get_user_sources(request: Request):
+    user = request.state.user
+    db: Storage = request.app.state.auth_db
+    all_sources = db.list_sources(enabled_only=True)
+    user_srcs = set(db.get_user_sources(user["id"]))
+    return {
+        "sources": [
+            {**src, "selected": src["name"] in user_srcs}
+            for src in all_sources
+        ],
+        "has_selection": len(user_srcs) > 0,
+    }
+
+
+@app.put("/user/sources")
+def set_user_sources(body: _UserSourcesRequest, request: Request):
+    user = request.state.user
+    db: Storage = request.app.state.auth_db
+    db.set_user_sources(user["id"], body.sources)
+    return {"ok": True}
+
+
+def _user_source_list(request: Request) -> "list[str] | None":
+    """Return user's selected source names, or None (meaning: all) if none set."""
+    user = getattr(request.state, "user", None)
+    if user is None:
+        return None
+    srcs = request.app.state.auth_db.get_user_sources(user["id"])
+    return srcs if srcs else None
+
+
+# ---------------------------------------------------------------------------
 # API
 # ---------------------------------------------------------------------------
 @app.get("/api/articles")
 def get_articles(
+    request: Request,
     domain: Optional[str] = Query(None, pattern="^(cyber|ai)$"),
     category: Optional[str] = None,
     severity: Optional[str] = Query(None, pattern="^(critical|high|medium|low)$"),
@@ -195,10 +243,11 @@ def get_articles(
     offset: int = Query(0, ge=0),
     include_duplicates: bool = True,
 ):
+    source_list = _user_source_list(request)
     items, total = _svc().query_page(
         domain=domain, category=category, severity=severity, region=region,
         source=source, q=q, sort=sort, limit=limit, offset=offset,
-        include_duplicates=include_duplicates,
+        include_duplicates=include_duplicates, source_list=source_list,
     )
     return {
         "count": len(items),
@@ -248,8 +297,9 @@ def get_stats():
 
 
 @app.get("/api/overview")
-def get_overview(highlights: int = Query(8, ge=1, le=20)):
-    return _svc().overview(highlights=highlights)
+def get_overview(request: Request, highlights: int = Query(8, ge=1, le=20)):
+    source_list = _user_source_list(request)
+    return _svc().overview(highlights=highlights, source_list=source_list)
 
 
 def _do_refresh():

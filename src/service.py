@@ -37,7 +37,8 @@ class NewsService:
 
     # ---- pipeline --------------------------------------------------------
     def refresh(self, verbose: bool = True) -> int:
-        sources = config.load_sources(enabled_only=True)
+        db_sources = self.store.list_sources(enabled_only=True)
+        sources = db_sources if db_sources else config.load_sources(enabled_only=True)
         collected: list[Article] = []
         for src in sources:
             try:
@@ -139,13 +140,14 @@ class NewsService:
         self,
         domain=None, category=None, severity=None, region=None,
         source=None, q=None, limit=None, sort=None, offset=0,
-        include_duplicates=True,
+        include_duplicates=True, source_list: list[str] | None = None,
     ) -> tuple[list[Article], int]:
         sort = sort or self.settings.get("output", {}).get("default_sort", "date")
         limit = limit or self.settings.get("output", {}).get("default_limit", 25)
         items, total = self.store.query(
             domain=domain, category=category, severity=severity, region=region,
             source=source, q=q, sort=sort, limit=limit, offset=offset,
+            source_list=source_list,
         )
         if not include_duplicates:
             items = [a for a in items if not a.duplicate_of]
@@ -206,13 +208,14 @@ class NewsService:
             "empty": [r["name"] for r in rows if r["status"] == "empty"],
         }
 
-    def overview(self, highlights: int = 8) -> dict:
+    def overview(self, highlights: int = 8, source_list: list[str] | None = None) -> dict:
         """A one-call summary for the overview dashboard."""
         stats = self.store.stats()
         now = datetime.now(timezone.utc)
 
         def _recent(sort="date", **filters):
-            items, total = self.store.query(sort=sort, limit=highlights * 2, **filters)
+            items, total = self.store.query(sort=sort, limit=highlights * 2,
+                                            source_list=source_list, **filters)
             items = [a for a in items if not a.duplicate_of][:highlights]
             return [a.to_dict() for a in items], total
 
