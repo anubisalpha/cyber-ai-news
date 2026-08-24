@@ -37,6 +37,8 @@ class NewsService:
 
     # ---- pipeline --------------------------------------------------------
     def refresh(self, verbose: bool = True) -> int:
+        import uuid
+        run_id = uuid.uuid4().hex
         db_sources = self.store.list_sources(enabled_only=True)
         sources = db_sources if db_sources else config.load_sources(enabled_only=True)
         collected: list[Article] = []
@@ -44,12 +46,13 @@ class NewsService:
             try:
                 items = fetch_source(src, self.settings)
                 collected.extend(items)
-                # A feed that returns 0 items is "ok" but worth noticing over time.
-                self.store.record_fetch(src["name"], ok=True, count=len(items), error=None)
+                self.store.record_fetch(src["name"], ok=True, count=len(items),
+                                        error=None, run_id=run_id)
                 if verbose:
                     print(f"  [ok]   {src['name']}: {len(items)} items")
             except Exception as exc:  # noqa: BLE001 - keep going on a bad feed
-                self.store.record_fetch(src["name"], ok=False, count=0, error=str(exc)[:300])
+                self.store.record_fetch(src["name"], ok=False, count=0,
+                                        error=str(exc)[:300], run_id=run_id)
                 if verbose:
                     print(f"  [fail] {src['name']}: {exc}")
 

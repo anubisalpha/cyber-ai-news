@@ -31,13 +31,47 @@
                padding: 6px 14px; border-radius: 6px; font: inherit; cursor: pointer; }
   nav button.active { background: var(--panel-2); color: var(--text); border-color: var(--border); }
   header .stats { color: var(--muted); font-size: 13px; margin-left: auto; white-space: nowrap; }
+  header .user-info { color: var(--muted); font-size: 12px; white-space: nowrap; }
+  header .user-info strong { color: var(--text); }
+  #fetchLogPanel { position: fixed; top: 54px; right: 12px; z-index: 200; width: 420px; max-width: 96vw;
+                   background: var(--panel); border: 1px solid var(--border); border-radius: 10px;
+                   box-shadow: 0 8px 32px rgba(0,0,0,.35); overflow: hidden; display: none; }
+  #fetchLogPanel.open { display: block; }
+  #fetchLogPanel header { padding: 10px 14px; border-bottom: 1px solid var(--border);
+                          font-size: 13px; font-weight: 600; display: flex; justify-content: space-between; }
+  #fetchLogPanel header button { padding: 2px 8px; font-size: 12px; margin-top: 0; }
+  .frun { padding: 10px 14px; border-bottom: 1px solid var(--border); font-size: 12px; }
+  .frun:last-child { border-bottom: none; }
+  .frun-hdr { display: flex; align-items: center; gap: 8px; margin-bottom: 4px; cursor: pointer; }
+  .frun-hdr strong { flex: 1; }
+  .frun-badge { padding: 1px 7px; border-radius: 999px; font-size: 11px; font-weight: 600; }
+  .frun-badge.ok { background: color-mix(in srgb, var(--accent-2) 20%, transparent); color: var(--accent-2); }
+  .frun-badge.err { background: color-mix(in srgb, var(--crit) 20%, transparent); color: var(--crit); }
+  .frun-detail { display: none; margin-top: 6px; padding-top: 6px; border-top: 1px solid var(--border); }
+  .frun-detail.open { display: block; }
+  .frun-src { display: flex; gap: 6px; padding: 2px 0; font-size: 11px; color: var(--muted); }
+  .frun-src .fsrc-name { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .frun-src .fsrc-err { color: var(--crit); font-size: 10px; margin-top: 2px; }
   button { font: inherit; cursor: pointer; border-radius: 6px; border: 1px solid var(--border);
            background: var(--panel-2); color: var(--text); padding: 7px 12px; }
   button.primary { background: var(--accent); color: #fff; border-color: var(--accent); }
   button:disabled { opacity: .5; cursor: default; }
 
   /* ---------- Overview ---------- */
-  .wrap { padding: 20px; max-width: 1200px; margin: 0 auto; }
+  .wrap { padding: 20px; max-width: 1400px; margin: 0 auto; }
+  .ov-layout { display: grid; grid-template-columns: 200px 1fr; gap: 20px; }
+  @media (max-width: 860px) { .ov-layout { grid-template-columns: 1fr; } .ov-sidebar { display: none; } }
+  .ov-sidebar { position: sticky; top: 58px; align-self: start; }
+  .ov-sidebar .card { padding: 12px; }
+  .ov-sidebar .card h3 { margin: 0 0 10px; font-size: 11px; }
+  .cat-list { list-style: none; padding: 0; margin: 0; }
+  .cat-list li { padding: 4px 6px; border-radius: 5px; font-size: 12px; color: var(--muted);
+                 cursor: pointer; display: flex; justify-content: space-between; align-items: center; }
+  .cat-list li:hover { background: var(--panel-2); color: var(--text); }
+  .cat-list li .cc { font-size: 11px; color: var(--muted); }
+  .cat-list .cat-group-hdr { font-size: 10px; text-transform: uppercase; letter-spacing: .7px;
+                              color: var(--muted); margin: 10px 0 4px; padding: 0 6px; cursor: default; }
+  .cat-list .cat-group-hdr:hover { background: none; color: var(--muted); }
   .watchstrip { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 16px; }
   .wchip { display: inline-flex; align-items: center; gap: 7px; padding: 6px 12px;
            background: var(--panel); border: 1px solid var(--border); border-radius: 999px;
@@ -227,33 +261,51 @@
     <button id="navAdmin" class="hidden">Admin</button>
   </nav>
   <span class="stats" id="headerStats"></span>
+  <span class="user-info" id="headerUser"></span>
   <span id="healthBadge" title="source health" style="font-size:12px;cursor:pointer"></span>
   <button id="refreshBtn" class="primary">↻ Refresh feeds</button>
   <button id="logoutBtn" style="font-size:12px;padding:5px 10px">Sign out</button>
 </header>
 
+<!-- Fetch log panel -->
+<div id="fetchLogPanel">
+  <header><span>Fetch Log</span><button id="fetchLogClose">✕</button></header>
+  <div id="fetchLogBody" style="max-height:420px;overflow-y:auto"></div>
+</div>
+
 <!-- ============ OVERVIEW ============ -->
 <section id="overview" class="wrap">
   <div id="watchStrip" class="watchstrip"></div>
   <div class="kpis" id="kpis"></div>
-  <div class="grid">
-    <div class="col">
-      <div class="card"><h3>Latest</h3><div id="ovLatest"></div></div>
-    </div>
-    <div class="col">
+  <div class="ov-layout">
+    <!-- Left sidebar: categories -->
+    <aside class="ov-sidebar">
       <div class="card">
-        <h3>Severity</h3>
-        <div class="sevbar" id="sevBar"></div>
-        <div class="seglegend" id="sevLegend"></div>
+        <h3>Categories</h3>
+        <ul class="cat-list" id="ovCatList"></ul>
       </div>
-      <div class="card"><h3>By domain</h3><div id="ovDomain"></div></div>
-      <div class="card"><h3>Top categories</h3><div id="ovCats"></div></div>
-      <div class="card"><h3>Top sources</h3><div id="ovSources"></div></div>
+    </aside>
+    <!-- Main content -->
+    <div>
+      <div class="grid">
+        <div class="col">
+          <div class="card"><h3>Latest</h3><div id="ovLatest"></div></div>
+        </div>
+        <div class="col">
+          <div class="card">
+            <h3>Severity</h3>
+            <div class="sevbar" id="sevBar"></div>
+            <div class="seglegend" id="sevLegend"></div>
+          </div>
+          <div class="card"><h3>By domain</h3><div id="ovDomain"></div></div>
+          <div class="card"><h3>Top sources</h3><div id="ovSources"></div></div>
+        </div>
+      </div>
+      <div class="grid" style="margin-top:16px">
+        <div class="card"><h3>⚠ Critical &amp; actively exploited</h3><div id="ovCritical"></div></div>
+        <div class="card"><h3>AI × Cyber</h3><div id="ovInter"></div></div>
+      </div>
     </div>
-  </div>
-  <div class="grid" style="margin-top:16px">
-    <div class="card"><h3>⚠ Critical &amp; actively exploited</h3><div id="ovCritical"></div></div>
-    <div class="card"><h3>AI × Cyber</h3><div id="ovInter"></div></div>
   </div>
 </section>
 
@@ -438,8 +490,88 @@ async function checkAuth() {
   if (_currentUser.force_password_change) {
     document.getElementById("pwChangeBanner").classList.remove("hidden");
   }
+  document.getElementById("headerUser").innerHTML =
+    `👤 <strong>${escapeHtml(_currentUser.username)}</strong>`;
   return true;
 }
+
+/* ===== FETCH LOG ===== */
+let _lastFetch = null;
+
+async function loadFetchLog() {
+  try {
+    const r = await fetch("/api/fetch-log?limit=15");
+    if (!r.ok) return;
+    const {runs, last_fetch} = await r.json();
+    _lastFetch = last_fetch;
+    updateLastFetchBadge();
+    const body = document.getElementById("fetchLogBody");
+    if (!runs.length) {
+      body.innerHTML = "<div style='padding:14px;color:var(--muted);font-size:13px'>No fetch history yet — trigger a refresh to start logging.</div>";
+      return;
+    }
+    body.innerHTML = runs.map(run => {
+      const hasErr = run.error_count > 0;
+      const badge = hasErr
+        ? `<span class="frun-badge err">${run.error_count} error${run.error_count>1?"s":""}</span>`
+        : `<span class="frun-badge ok">${run.source_count} ok</span>`;
+      return `<div class="frun">
+        <div class="frun-hdr" onclick="toggleRunDetail(this)">
+          <strong>${fmtDate(run.finished_at)}</strong>
+          <span style="color:var(--muted)">${run.total_items} items · ${run.source_count} sources</span>
+          ${badge}
+          <span style="color:var(--muted)">▾</span>
+        </div>
+        <div class="frun-detail" data-run="${escapeHtml(run.run_id)}"></div>
+      </div>`;
+    }).join("");
+  } catch(e) { /* ignore */ }
+}
+
+function updateLastFetchBadge() {
+  const el = document.getElementById("headerStats");
+  const fetchPart = _lastFetch ? ` · last fetch ${fmtDate(_lastFetch)}` : "";
+  if (el.dataset.base) el.textContent = el.dataset.base + fetchPart;
+}
+
+async function toggleRunDetail(hdr) {
+  const detail = hdr.nextElementSibling;
+  const isOpen = detail.classList.contains("open");
+  if (isOpen) { detail.classList.remove("open"); return; }
+  const run_id = detail.dataset.run;
+  if (!detail.dataset.loaded) {
+    detail.textContent = "Loading…";
+    try {
+      const r = await fetch(`/api/fetch-log?limit=100`);
+      const {runs} = await r.json();
+      // find per-source detail via the full run list — we need a detail endpoint
+      // fall back to showing the run summary only
+      const run = runs.find(r => r.run_id === run_id);
+      if (run) {
+        detail.innerHTML = `<div style="color:var(--muted);font-size:11px">
+          Started: ${fullDate(run.started_at)}<br>
+          Finished: ${fullDate(run.finished_at)}<br>
+          ${run.total_items} articles · ${run.source_count} sources · ${run.error_count} errors
+        </div>`;
+      }
+    } catch(e) { detail.textContent = ""; }
+    detail.dataset.loaded = "1";
+  }
+  detail.classList.add("open");
+}
+
+document.getElementById("fetchLogClose").addEventListener("click", () => {
+  document.getElementById("fetchLogPanel").classList.remove("open");
+});
+
+// clicking the last-fetch text opens the panel
+document.getElementById("headerStats").addEventListener("click", () => {
+  const panel = document.getElementById("fetchLogPanel");
+  const isOpen = panel.classList.contains("open");
+  if (isOpen) { panel.classList.remove("open"); return; }
+  panel.classList.add("open");
+  loadFetchLog();
+});
 
 document.getElementById("loginBtn").addEventListener("click", async () => {
   const user = document.getElementById("loginUser").value.trim();
@@ -454,7 +586,7 @@ document.getElementById("loginBtn").addEventListener("click", async () => {
   });
   if (r.ok) {
     await checkAuth();
-    loadOverview(); loadWatchlists(); loadHealth();
+    loadOverview(); loadWatchlists(); loadHealth(); loadFetchLog();
   } else {
     err.textContent = "Invalid username or password.";
     document.getElementById("loginPass").value = "";
@@ -849,8 +981,12 @@ function jumpToBrowse(patch) {
 /* ---------- overview ---------- */
 async function loadOverview() {
   const o = await fetch("/api/overview?highlights=8").then(r => r.json());
-  $("#headerStats").textContent =
-    `${o.total} articles · ${o.new_last_24h} new (24h)`;
+  const base = `${o.total} articles · ${o.new_last_24h} new (24h)`;
+  const el = $("#headerStats");
+  el.dataset.base = base;
+  el.textContent = base + (_lastFetch ? ` · last fetch ${fmtDate(_lastFetch)}` : "");
+  el.title = "Click to view fetch log";
+  el.style.cursor = "pointer";
 
   const crit = o.critical_count ?? (o.by_severity.critical || 0);
   const inter = o.intersection_count ?? 0;
@@ -870,10 +1006,8 @@ async function loadOverview() {
 
   renderSeverity(o.by_severity);
   $("#ovDomain").innerHTML = bars(Object.entries(o.by_domain), o.total, k => ({domain:k}));
-  $("#ovCats").innerHTML = bars(o.top_categories.filter(([k])=>k!=="uncategorized").slice(0,8),
-                                o.top_categories[0]?.[1] || 1,
-                                k => ({category: k.split(".").pop()}));
   $("#ovSources").innerHTML = bars(o.top_sources, o.top_sources[0]?.[1] || 1, k => ({source:k}));
+  renderCategorySidebar(o.top_categories);
 }
 function kpi(cls, n, label, filter) {
   return `<div class="kpi ${cls}" data-filter='${JSON.stringify(filter)}'>
@@ -907,6 +1041,41 @@ function renderSeverity(sev) {
   $("#sevLegend").querySelectorAll("[data-sev]").forEach(el =>
     el.addEventListener("click", () => jumpToBrowse({severity: el.dataset.sev})));
 }
+function renderCategorySidebar(topCategories) {
+  const list = $("#ovCatList");
+  if (!topCategories || !topCategories.length) {
+    list.innerHTML = "<li style='color:var(--muted);font-size:12px;padding:4px 6px'>No data yet.</li>";
+    return;
+  }
+  // Group by domain prefix (cyber.*, ai.*, intersection, uncategorized)
+  const groups = {};
+  for (const [key, count] of topCategories) {
+    if (key === "uncategorized") continue;
+    const parts = key.split(".");
+    const domain = parts.length > 1 ? parts[0] : "other";
+    const label = parts[parts.length - 1];
+    if (!groups[domain]) groups[domain] = [];
+    groups[domain].push({key, label, count});
+  }
+  const domainOrder = ["cyber", "ai", "intersection", "other"];
+  const domainLabels = {cyber:"Cyber", ai:"AI", intersection:"AI × Cyber", other:"Other"};
+  let html = "";
+  for (const domain of domainOrder) {
+    if (!groups[domain]) continue;
+    html += `<li class="cat-group-hdr">${domainLabels[domain] || domain}</li>`;
+    for (const {key, label, count} of groups[domain].slice(0, 12)) {
+      const slug = key.split(".").pop();
+      html += `<li data-filter='${JSON.stringify({category:slug})}'>
+        <span>${escapeHtml(label)}</span>
+        <span class="cc">${count}</span>
+      </li>`;
+    }
+  }
+  list.innerHTML = html;
+  list.querySelectorAll("[data-filter]").forEach(el =>
+    el.addEventListener("click", () => jumpToBrowse(JSON.parse(el.dataset.filter))));
+}
+
 // event delegation for the clickable bars
 document.addEventListener("click", e => {
   const bar = e.target.closest(".bar");
@@ -1027,7 +1196,7 @@ $("#refreshBtn").addEventListener("click", async () => {
     if (!h.refresh.running) {
       clearInterval(poll);
       btn.disabled = false; btn.innerHTML = "↻ Refresh feeds";
-      await loadOverview(); loadHealth();
+      await loadOverview(); loadHealth(); loadFetchLog();
       if (browseLoaded && !$("#browse").classList.contains("hidden")) loadBrowse();
     }
   }, 1500);
@@ -1067,7 +1236,7 @@ async function loadHealth() {
 
 /* ---------- init ---------- */
 checkAuth().then(authed => {
-  if (authed) { loadOverview(); loadWatchlists(); loadHealth(); }
+  if (authed) { loadOverview(); loadWatchlists(); loadHealth(); loadFetchLog(); }
 });
 </script>
 </body>

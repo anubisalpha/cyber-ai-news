@@ -383,12 +383,23 @@ def rss_feed(
     return Response(content=body, media_type="application/rss+xml")
 
 
+@app.get("/api/fetch-log")
+def get_fetch_log(request: Request, limit: int = Query(20, ge=1, le=100)):
+    db: Storage = request.app.state.auth_db
+    return {
+        "runs": db.get_fetch_runs(limit=limit),
+        "last_fetch": db.get_last_fetch_time(),
+    }
+
+
 @app.get("/api/health")
-def health():
+def health(request: Request):
+    db: Storage = request.app.state.auth_db
     return {
         "status": "ok",
         "refresh": _refresh_state,
         "stored": _svc().stats()["total"],
+        "last_fetch": db.get_last_fetch_time(),
     }
 
 

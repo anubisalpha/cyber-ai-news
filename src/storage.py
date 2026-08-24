@@ -135,6 +135,18 @@ class Storage:
                 group_dn      TEXT,
                 updated_at    TEXT
             );
+
+            CREATE TABLE IF NOT EXISTS fetch_history (
+                id          INTEGER PRIMARY KEY AUTOINCREMENT,
+                fetched_at  TEXT NOT NULL,
+                run_id      TEXT NOT NULL,
+                source_name TEXT NOT NULL,
+                ok          INTEGER NOT NULL,
+                item_count  INTEGER NOT NULL DEFAULT 0,
+                error       TEXT
+            );
+            CREATE INDEX IF NOT EXISTS idx_fh_run  ON fetch_history(run_id);
+            CREATE INDEX IF NOT EXISTS idx_fh_time ON fetch_history(fetched_at);
             """
         )
         # Schema migrations for columns added after initial release
@@ -282,7 +294,8 @@ class Storage:
         return {k: v for k, v in self.conn.execute(sql) if k is not None}
 
     # ---- source health ---------------------------------------------------
-    def record_fetch(self, name: str, ok: bool, count: int, error: str | None) -> None:
+    def record_fetch(self, name: str, ok: bool, count: int, error: str | None,
+                     run_id: str | None = None) -> None:
         now = datetime.now(timezone.utc).isoformat()
         row = self.conn.execute(
             "SELECT fail_streak, last_success FROM source_health WHERE name=?", (name,)
@@ -302,7 +315,44 @@ class Storage:
                  ok=excluded.ok, error=excluded.error, fail_streak=excluded.fail_streak""",
             (name, now, last_success, count, 1 if ok else 0, error, streak),
         )
+        if run_id:
+            self.conn.execute(
+                "INSERT INTO fetch_history (fetched_at,run_id,source_name,ok,item_count,error)"
+                " VALUES (?,?,?,?,?,?)",
+                (now, run_id, name, 1 if ok else 0, count, error),
+            )
         self.conn.commit()
+
+    def get_fetch_runs(self, limit: int = 20) -> list[dict]:
+        """Return recent fetch runs, one summary row per run_id, newest first."""
+        sql = """
+            SELECT run_id,
+                   MIN(fetched_at)  AS started_at,
+                   MAX(fetched_at)  AS finished_at,
+                   COUNT(*)         AS source_count,
+                   SUM(item_count)  AS total_items,
+                   SUM(CASE WHEN ok=0 THEN 1 ELSE 0 END) AS error_count
+            FROM fetch_history
+            GROUP BY run_id
+            ORDER BY finished_at DESC
+            LIMIT ?
+        """
+        rows = self.conn.execute(sql, (limit,)).fetchall()
+        return [dict(r) for r in rows]
+
+    def get_fetch_run_detail(self, run_id: str) -> list[dict]:
+        """Return per-source entries for a specific run."""
+        rows = self.conn.execute(
+            "SELECT * FROM fetch_history WHERE run_id=? ORDER BY fetched_at",
+            (run_id,),
+        ).fetchall()
+        return [dict(r) for r in rows]
+
+    def get_last_fetch_time(self) -> str | None:
+        row = self.conn.execute(
+            "SELECT MAX(fetched_at) FROM fetch_history"
+        ).fetchone()
+        return row[0] if row else None
 
     def health(self) -> list[dict]:
         cur = self.conn.execute(
