@@ -57,6 +57,7 @@ def _send_smtp(host: str, to: str | None, subject: str, html: str) -> str:
     msg.attach(MIMEText(html, "html"))
 
     use_ssl = os.environ.get("SMTP_SSL", "").lower() in ("1", "true", "yes") or port == 465
+    no_tls = os.environ.get("SMTP_NO_TLS", "").lower() in ("1", "true", "yes")
     ctx = ssl.create_default_context()
     if use_ssl:
         with smtplib.SMTP_SSL(host, port, context=ctx) as s:
@@ -65,7 +66,8 @@ def _send_smtp(host: str, to: str | None, subject: str, html: str) -> str:
             s.sendmail(sender, [to], msg.as_string())
     else:
         with smtplib.SMTP(host, port) as s:
-            s.starttls(context=ctx)
+            if not no_tls:
+                s.starttls(context=ctx)
             if user:
                 s.login(user, password)
             s.sendmail(sender, [to], msg.as_string())

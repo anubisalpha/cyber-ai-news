@@ -66,6 +66,7 @@ def _run(stop: threading.Event, verbose: bool = True) -> None:
                 last_nightly_day = now.date()
                 anchor = now.replace(second=0, microsecond=0)
                 _safe_refresh(verbose)
+                _safe_digest(verbose)
                 if cd.get("enabled"):
                     _safe_critical_digest(anchor, verbose)
 
