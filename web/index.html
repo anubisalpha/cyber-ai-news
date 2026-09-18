@@ -257,14 +257,19 @@
   .changelog-list li span.cl-src { font-weight: 600; color: var(--text); }
 
   /* ---------- My Feeds ---------- */
-  #myFeedsSection { padding: 20px; max-width: 1200px; margin: 0 auto; }
+  #myFeedsSection { padding: 20px; }
   #myFeedsSection h2 { font-size: 17px; margin: 0 0 4px; }
   #myFeedsSection p { color: var(--muted); font-size: 13px; margin: 0 0 16px; }
   .feeds-toolbar { display: flex; gap: 8px; margin-bottom: 14px; align-items: center; flex-wrap: wrap; }
-  .feeds-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; }
-  @media (max-width: 900px) { .feeds-grid { grid-template-columns: repeat(2, 1fr); } }
-  @media (max-width: 500px) { .feeds-grid { grid-template-columns: 1fr; } }
-  .feeds-group { margin-bottom: 28px; }
+  /* Outer: domain group columns fill the full available width */
+  #feedsGrid { display: flex; align-items: flex-start; gap: 20px; }
+  #feedsGrid > .feeds-group { flex: 1; min-width: 0; }
+  /* Inner: cards within each column wrap freely */
+  .feeds-grid { display: flex; flex-wrap: wrap; gap: 8px; }
+  .feed-item { flex: 1 1 140px; min-width: 130px; max-width: 220px; }
+  .feeds-group { margin-bottom: 0; }
+  @media (max-width: 1100px) { #feedsGrid { flex-wrap: wrap; } #feedsGrid > .feeds-group { flex: 1 1 280px; } }
+  @media (max-width: 500px) { #feedsGrid > .feeds-group { flex: 1 1 100%; } }
   .feeds-group-header { display: flex; align-items: baseline; gap: 10px; margin-bottom: 6px; }
   .feeds-group-title { font-size: 13px; font-weight: 700; text-transform: uppercase; letter-spacing: .06em; color: var(--muted); }
   .feeds-group-count { font-size: 12px; color: var(--muted); }

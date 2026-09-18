@@ -100,6 +100,8 @@ class Storage:
                 domain      TEXT,
                 weight      INTEGER DEFAULT 50,
                 tags        TEXT,
+                parser      TEXT,
+                product_url TEXT,
                 created_at  TEXT,
                 updated_at  TEXT,
                 created_by  TEXT
@@ -153,6 +155,8 @@ class Storage:
         for stmt in [
             "ALTER TABLE users ADD COLUMN auth_source TEXT NOT NULL DEFAULT 'local'",
             "ALTER TABLE users ADD COLUMN email TEXT",
+            "ALTER TABLE sources ADD COLUMN parser TEXT",
+            "ALTER TABLE sources ADD COLUMN product_url TEXT",
         ]:
             try:
                 self.conn.execute(stmt)
@@ -476,12 +480,13 @@ class Storage:
         for s in sources:
             self.conn.execute(
                 """INSERT OR IGNORE INTO sources
-                   (name,label,url,type,enabled,domain,weight,tags,created_at,updated_at,created_by)
-                   VALUES (?,?,?,?,?,?,?,?,?,?,?)""",
+                   (name,label,url,type,enabled,domain,weight,tags,parser,product_url,created_at,updated_at,created_by)
+                   VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)""",
                 (s.get("name"), s.get("label", s.get("name")), s.get("url", ""),
                  s.get("type", "rss"), 1 if s.get("enabled", True) else 0,
                  s.get("domain", "both"), s.get("weight", 50),
-                 json.dumps(s.get("tags", [])), now, now, created_by),
+                 json.dumps(s.get("tags", [])), s.get("parser"), s.get("product_url"),
+                 now, now, created_by),
             )
         self.conn.commit()
 
@@ -499,12 +504,12 @@ class Storage:
     def create_source(self, data: dict, created_by: str) -> None:
         now = datetime.now(timezone.utc).isoformat()
         self.conn.execute(
-            """INSERT INTO sources (name,label,url,type,enabled,domain,weight,tags,product_url,created_at,updated_at,created_by)
-               VALUES (?,?,?,?,?,?,?,?,?,?,?,?)""",
+            """INSERT INTO sources (name,label,url,type,enabled,domain,weight,tags,parser,product_url,created_at,updated_at,created_by)
+               VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)""",
             (data["name"], data.get("label", data["name"]), data.get("url", ""),
              data.get("type", "rss"), 1 if data.get("enabled", True) else 0,
              data.get("domain", "both"), data.get("weight", 50),
-             json.dumps(data.get("tags", [])), data.get("product_url"),
+             json.dumps(data.get("tags", [])), data.get("parser"), data.get("product_url"),
              now, now, created_by),
         )
         self._log_source_change(data["name"], "add", created_by, data)
@@ -515,7 +520,7 @@ class Storage:
         if not existing:
             return False
         now = datetime.now(timezone.utc).isoformat()
-        allowed = {"label", "url", "type", "enabled", "domain", "weight", "tags", "product_url"}
+        allowed = {"label", "url", "type", "enabled", "domain", "weight", "tags", "parser", "product_url"}
         sets, vals = [], []
         for k, v in changes.items():
             if k in allowed:
