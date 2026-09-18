@@ -264,6 +264,24 @@ sources:
     weight: 3
     product_url: https://aws.amazon.com/new/
 
+  # Virtualisation security
+  - name: VMware Security Blog
+    type: rss
+    url: https://blogs.vmware.com/security/feed
+    domain: releases
+    enabled: true
+    weight: 4
+    product_url: https://www.vmware.com/security/advisories.html
+
+  # Microsoft Windows patches (Patch Tuesday, all Windows products)
+  - name: Microsoft Security Updates (MSRC)
+    type: rss
+    url: https://msrc.microsoft.com/update-guide/rss
+    domain: releases
+    enabled: true
+    weight: 5
+    product_url: https://msrc.microsoft.com/update-guide/
+
   # ---------------------------------------------------------------------------
   # Server runtimes & web server
   # ---------------------------------------------------------------------------
@@ -299,6 +317,14 @@ sources:
     weight: 3
     product_url: https://nginx.org/en/CHANGES
 
+  - name: Apache httpd Releases
+    type: rss
+    url: https://github.com/apache/httpd/releases.atom
+    domain: releases
+    enabled: true
+    weight: 4
+    product_url: https://httpd.apache.org/download.cgi
+
   # ---------------------------------------------------------------------------
   # Databases
   # ---------------------------------------------------------------------------
@@ -309,6 +335,14 @@ sources:
     enabled: true
     weight: 4
     product_url: https://www.postgresql.org/about/newsarchive/
+
+  - name: SQLite Releases
+    type: rss
+    url: https://github.com/sqlite/sqlite/releases.atom
+    domain: releases
+    enabled: true
+    weight: 3
+    product_url: https://www.sqlite.org/changes.html
 
   - name: MariaDB Releases
     type: rss
@@ -325,6 +359,82 @@ sources:
     enabled: true
     weight: 3
     product_url: https://redis.io/blog/release-notes/
+
+  # ---------------------------------------------------------------------------
+  # Security tools
+  # ---------------------------------------------------------------------------
+  - name: Grafana Releases
+    type: rss
+    url: https://github.com/grafana/grafana/releases.atom
+    domain: releases
+    enabled: true
+    weight: 4
+    product_url: https://grafana.com/blog/tag/grafana/
+
+  - name: ClamAV Releases
+    type: rss
+    url: https://github.com/Cisco-Talos/clamav/releases.atom
+    domain: releases
+    enabled: true
+    weight: 4
+    product_url: https://www.clamav.net/
+
+  - name: Nuclei Releases
+    type: rss
+    url: https://github.com/projectdiscovery/nuclei/releases.atom
+    domain: releases
+    enabled: true
+    weight: 3
+    product_url: https://github.com/projectdiscovery/nuclei/releases
+
+  - name: OWASP ZAP Releases
+    type: rss
+    url: https://github.com/zaproxy/zaproxy/releases.atom
+    domain: releases
+    enabled: true
+    weight: 3
+    product_url: https://www.zaproxy.org/docs/desktop/releases/
+
+  - name: Retire.js Releases
+    type: rss
+    url: https://github.com/RetireJS/retire.js/releases.atom
+    domain: releases
+    enabled: true
+    weight: 3
+    product_url: https://github.com/RetireJS/retire.js/releases
+
+  # ---------------------------------------------------------------------------
+  # IaC / DevOps
+  # ---------------------------------------------------------------------------
+  - name: Terraform Releases
+    type: rss
+    url: https://github.com/hashicorp/terraform/releases.atom
+    domain: releases
+    enabled: true
+    weight: 4
+    product_url: https://developer.hashicorp.com/terraform/changelog
+
+  # ---------------------------------------------------------------------------
+  # Collaboration platforms
+  # ---------------------------------------------------------------------------
+  - name: Confluence / Jira Releases
+    type: rss
+    url: https://github.com/atlassian/jira-actions/releases.atom
+    domain: releases
+    enabled: false          # no public RSS for Confluence/Jira server releases; review URL
+    weight: 3
+    product_url: https://confluence.atlassian.com/jira/jira-release-notes-197772173.html
+
+  # ---------------------------------------------------------------------------
+  # Mail
+  # ---------------------------------------------------------------------------
+  - name: Postfix Releases
+    type: rss
+    url: https://github.com/vdukhovni/postfix/releases.atom
+    domain: releases
+    enabled: true
+    weight: 3
+    product_url: https://www.postfix.org/announcements.html
 
   # ---------------------------------------------------------------------------
   # Frontend libraries
