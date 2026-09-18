@@ -263,3 +263,130 @@ sources:
     enabled: true
     weight: 3
     product_url: https://aws.amazon.com/new/
+
+  # ---------------------------------------------------------------------------
+  # Server runtimes & web server
+  # ---------------------------------------------------------------------------
+  - name: PHP Releases
+    type: rss
+    url: https://github.com/php/php-src/releases.atom
+    domain: releases
+    enabled: true
+    weight: 4
+    product_url: https://www.php.net/releases/
+
+  - name: Node.js Releases
+    type: rss
+    url: https://github.com/nodejs/node/releases.atom
+    domain: releases
+    enabled: true
+    weight: 4
+    product_url: https://nodejs.org/en/about/previous-releases
+
+  - name: Python Releases
+    type: rss
+    url: https://github.com/python/cpython/releases.atom
+    domain: releases
+    enabled: true
+    weight: 3
+    product_url: https://www.python.org/downloads/
+
+  - name: Nginx Releases
+    type: rss
+    url: https://github.com/nginx/nginx/releases.atom
+    domain: releases
+    enabled: true
+    weight: 3
+    product_url: https://nginx.org/en/CHANGES
+
+  # ---------------------------------------------------------------------------
+  # Databases
+  # ---------------------------------------------------------------------------
+  - name: PostgreSQL Releases
+    type: rss
+    url: https://github.com/postgres/postgres/releases.atom
+    domain: releases
+    enabled: true
+    weight: 4
+    product_url: https://www.postgresql.org/about/newsarchive/
+
+  - name: MariaDB Releases
+    type: rss
+    url: https://github.com/MariaDB/server/releases.atom
+    domain: releases
+    enabled: true
+    weight: 3
+    product_url: https://mariadb.com/kb/en/release-notes/
+
+  - name: Redis Releases
+    type: rss
+    url: https://github.com/redis/redis/releases.atom
+    domain: releases
+    enabled: true
+    weight: 3
+    product_url: https://redis.io/blog/release-notes/
+
+  # ---------------------------------------------------------------------------
+  # Frontend libraries
+  # ---------------------------------------------------------------------------
+  - name: jQuery Releases
+    type: rss
+    url: https://github.com/jquery/jquery/releases.atom
+    domain: releases
+    enabled: true
+    weight: 3
+    product_url: https://jquery.com/
+
+  - name: Bootstrap Releases
+    type: rss
+    url: https://github.com/twbs/bootstrap/releases.atom
+    domain: releases
+    enabled: true
+    weight: 3
+    product_url: https://getbootstrap.com/
+
+  - name: React Releases
+    type: rss
+    url: https://github.com/facebook/react/releases.atom
+    domain: releases
+    enabled: true
+    weight: 3
+    product_url: https://react.dev/
+
+  # ---------------------------------------------------------------------------
+  # PHP ecosystem
+  # ---------------------------------------------------------------------------
+  - name: Composer Releases
+    type: rss
+    url: https://github.com/composer/composer/releases.atom
+    domain: releases
+    enabled: true
+    weight: 3
+    product_url: https://getcomposer.org/changelog
+
+  - name: Laravel Releases
+    type: rss
+    url: https://github.com/laravel/framework/releases.atom
+    domain: releases
+    enabled: false          # enable if Lac2/Collection Portal uses Laravel
+    weight: 3
+    product_url: https://laravel.com/docs/releases
+
+  # ---------------------------------------------------------------------------
+  # Node.js / Lighthouse ecosystem
+  # ---------------------------------------------------------------------------
+  - name: Next.js Releases
+    type: rss
+    url: https://github.com/vercel/next.js/releases.atom
+    domain: releases
+    enabled: false          # enable if Lighthouse uses Next.js
+    weight: 3
+    product_url: https://nextjs.org/blog
+
+  - name: Vue.js Releases
+    type: rss
+    url: https://github.com/vuejs/core/releases.atom
+    domain: releases
+    enabled: false          # enable if Lighthouse uses Vue
+    weight: 3
+    product_url: https://blog.vuejs.org/
