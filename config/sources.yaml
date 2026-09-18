@@ -135,7 +135,7 @@ sources:
     type: rss
     url: https://venturebeat.com/category/ai/feed/
     domain: ai
-    enabled: true
+    enabled: false          # 429 rate-limit from proxy IP; re-enable if VB relaxes limits
     weight: 3
 
   - name: Google AI Blog

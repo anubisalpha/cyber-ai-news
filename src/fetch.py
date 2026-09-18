@@ -21,11 +21,17 @@ from .models import Article
 def fetch_rss(source: dict, settings: dict) -> list[Article]:
     fcfg = settings.get("fetch", {})
     max_items = fcfg.get("max_items_per_source", 50)
+    user_agent = fcfg.get("user_agent", "cyber-ai-news")
 
-    parsed = feedparser.parse(
+    # feedparser has its own HTTP client and ignores HTTP_PROXY / HTTPS_PROXY.
+    # Fetch with requests so proxy env vars are honoured, then parse the content.
+    resp = requests.get(
         source["url"],
-        request_headers={"User-Agent": fcfg.get("user_agent", "cyber-ai-news")},
+        timeout=fcfg.get("timeout_seconds", 20),
+        headers={"User-Agent": user_agent},
     )
+    resp.raise_for_status()
+    parsed = feedparser.parse(resp.text)
 
     articles: list[Article] = []
     for entry in parsed.entries[:max_items]:
