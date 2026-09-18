@@ -14,7 +14,7 @@
     --bg: #0d1117; --panel: #161b22; --panel-2: #1c2330; --border: #2a3140;
     --text: #e6edf3; --muted: #8b949e; --accent: #4f9cff; --accent-2: #7ee787;
     --crit: #ff6b6b; --high: #ffa657; --med: #f2cc60; --low: #8b949e;
-    --cyber: #4f9cff; --ai: #bc8cff; --both: #7ee787;
+    --cyber: #4f9cff; --ai: #bc8cff; --both: #7ee787; --releases: #f0a030;
   }
   /* Auto mode follows system preference when no explicit theme is set */
   @media (prefers-color-scheme: light) {
@@ -22,7 +22,7 @@
       --bg: #f6f8fa; --panel: #ffffff; --panel-2: #f0f3f6; --border: #d0d7de;
       --text: #1f2328; --muted: #656d76; --accent: #0969da; --accent-2: #1a7f37;
       --crit: #cf222e; --high: #bc4c00; --med: #9a6700; --low: #656d76;
-      --cyber: #0969da; --ai: #8250df; --both: #1a7f37;
+      --cyber: #0969da; --ai: #8250df; --both: #1a7f37; --releases: #c47209;
     }
   }
   /* === Explicit theme overrides === */
@@ -30,25 +30,25 @@
     --bg: #0d1117; --panel: #161b22; --panel-2: #1c2330; --border: #2a3140;
     --text: #e6edf3; --muted: #8b949e; --accent: #4f9cff; --accent-2: #7ee787;
     --crit: #ff6b6b; --high: #ffa657; --med: #f2cc60; --low: #8b949e;
-    --cyber: #4f9cff; --ai: #bc8cff; --both: #7ee787;
+    --cyber: #4f9cff; --ai: #bc8cff; --both: #7ee787; --releases: #f0a030;
   }
   html[data-theme="light"] {
     --bg: #f6f8fa; --panel: #ffffff; --panel-2: #f0f3f6; --border: #d0d7de;
     --text: #1f2328; --muted: #656d76; --accent: #0969da; --accent-2: #1a7f37;
     --crit: #cf222e; --high: #bc4c00; --med: #9a6700; --low: #656d76;
-    --cyber: #0969da; --ai: #8250df; --both: #1a7f37;
+    --cyber: #0969da; --ai: #8250df; --both: #1a7f37; --releases: #c47209;
   }
   html[data-theme="hc"] {
     --bg: #000; --panel: #0a0a0a; --panel-2: #141414; --border: #666;
     --text: #fff; --muted: #aaa; --accent: #00bfff; --accent-2: #00ff88;
     --crit: #ff4444; --high: #ff8c00; --med: #ffd700; --low: #aaa;
-    --cyber: #00bfff; --ai: #cc99ff; --both: #00ff88;
+    --cyber: #00bfff; --ai: #cc99ff; --both: #00ff88; --releases: #ffb347;
   }
   html[data-theme="navy"] {
     --bg: #0a1628; --panel: #112240; --panel-2: #1b3155; --border: #2d4a72;
     --text: #ccd6f6; --muted: #8892b0; --accent: #64ffda; --accent-2: #48c774;
     --crit: #ff6b6b; --high: #ffa657; --med: #f2cc60; --low: #8892b0;
-    --cyber: #64ffda; --ai: #c084fc; --both: #48c774;
+    --cyber: #64ffda; --ai: #c084fc; --both: #48c774; --releases: #ffc266;
   }
   /* Logo: white by default; invert to dark on light backgrounds */
   html[data-theme="light"] .site-logo { filter: brightness(0); }
@@ -155,6 +155,7 @@
   .badge.dom-cyber { background: color-mix(in srgb, var(--cyber) 20%, transparent); color: var(--cyber); }
   .badge.dom-ai { background: color-mix(in srgb, var(--ai) 20%, transparent); color: var(--ai); }
   .badge.dom-both { background: color-mix(in srgb, var(--both) 20%, transparent); color: var(--both); }
+  .badge.dom-releases { background: color-mix(in srgb, var(--releases) 20%, transparent); color: var(--releases); }
   .sev { font-weight: 700; text-transform: uppercase; font-size: 10px; letter-spacing: .5px; }
   .sev.critical { color: var(--crit); } .sev.high { color: var(--high); }
   .sev.medium { color: var(--med); } .sev.low { color: var(--low); }
@@ -260,7 +261,14 @@
   #myFeedsSection h2 { font-size: 17px; margin: 0 0 4px; }
   #myFeedsSection p { color: var(--muted); font-size: 13px; margin: 0 0 16px; }
   .feeds-toolbar { display: flex; gap: 8px; margin-bottom: 14px; align-items: center; flex-wrap: wrap; }
-  .feeds-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 10px; margin-bottom: 16px; }
+  .feeds-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 10px; }
+  .feeds-group { margin-bottom: 28px; }
+  .feeds-group-header { display: flex; align-items: baseline; gap: 10px; margin-bottom: 6px; }
+  .feeds-group-title { font-size: 13px; font-weight: 700; text-transform: uppercase; letter-spacing: .06em; color: var(--muted); }
+  .feeds-group-count { font-size: 12px; color: var(--muted); }
+  .feeds-group-desc { font-size: 12px; color: var(--muted); margin: 0 0 8px; }
+  .feed-product-link { font-size: 11px; color: var(--accent); text-decoration: none; }
+  .feed-product-link:hover { text-decoration: underline; }
   .feed-item { background: var(--panel); border: 1px solid var(--border); border-radius: 8px;
                padding: 12px 14px; display: flex; align-items: flex-start; gap: 10px; cursor: pointer; }
   .feed-item:hover { border-color: var(--accent); }
@@ -269,6 +277,20 @@
   .feed-item .feed-name { font-size: 14px; font-weight: 600; }
   .feed-item .feed-meta { font-size: 11px; color: var(--muted); margin-top: 2px; }
   .feed-item.feed-selected { border-color: var(--accent); background: color-mix(in srgb, var(--accent) 8%, var(--panel)); }
+  /* ---------- Add Feed form ---------- */
+  .add-feed-card { background: var(--panel); border: 1px solid var(--border); border-radius: 10px;
+                   padding: 18px; margin-top: 24px; }
+  .add-feed-card h3 { font-size: 14px; font-weight: 600; margin: 0 0 12px; }
+  .add-feed-row { display: flex; gap: 8px; flex-wrap: wrap; align-items: flex-start; margin-bottom: 8px; }
+  .add-feed-row input[type=url], .add-feed-row input[type=text] {
+    flex: 1; min-width: 200px; padding: 7px 10px; border-radius: 6px;
+    border: 1px solid var(--border); background: var(--panel-2); color: var(--text); font-size: 13px; }
+  .add-feed-row select { padding: 7px 10px; border-radius: 6px; border: 1px solid var(--border);
+                         background: var(--panel-2); color: var(--text); font-size: 13px; }
+  #addFeedStatus { font-size: 12px; min-height: 18px; margin-top: 4px; }
+  #addFeedStatus.ok  { color: var(--accent-2); }
+  #addFeedStatus.err { color: var(--crit); }
+  #addFeedStatus.info { color: var(--muted); }
 </style>
 </head>
 <body>
@@ -322,6 +344,7 @@
     <span class="chip active" data-domain="">All</span>
     <span class="chip" data-domain="cyber">Cyber</span>
     <span class="chip" data-domain="ai">AI</span>
+    <span class="chip" data-domain="releases">Releases</span>
   </div>
   <h2>Category</h2>
   <select id="category" class="field"><option value="">All categories</option></select>
@@ -374,7 +397,7 @@
 <!-- ============ MY FEEDS ============ -->
 <section id="myFeedsSection" class="hidden">
   <h2>My Feeds</h2>
-  <p>Select the sources you want to see in Overview and Browse. Deselecting all shows everything.</p>
+  <p>Select the feeds and products you want to see in Overview and Browse. Deselecting all shows everything.</p>
   <div class="feeds-toolbar">
     <button id="feedsSelectAll">Select all</button>
     <button id="feedsDeselectAll">Deselect all</button>
@@ -382,6 +405,27 @@
     <span id="feedsMsg" class="admin-msg" style="margin-top:0"></span>
   </div>
   <div class="feeds-grid" id="feedsGrid"></div>
+
+  <div class="add-feed-card">
+    <h3>Suggest a feed</h3>
+    <div class="add-feed-row">
+      <input type="url" id="addFeedUrl" placeholder="https://example.com/feed.rss" />
+      <select id="addFeedDomain">
+        <option value="cyber">Cyber</option>
+        <option value="ai">AI</option>
+        <option value="both">Both</option>
+        <option value="releases">Releases</option>
+      </select>
+    </div>
+    <div class="add-feed-row">
+      <input type="text" id="addFeedLabel" placeholder="Display name (optional — auto-detected if blank)" />
+    </div>
+    <div class="add-feed-row">
+      <button id="addFeedValidateBtn">Check feed</button>
+      <button class="primary" id="addFeedSubmitBtn" disabled>Add feed</button>
+    </div>
+    <div id="addFeedStatus"></div>
+  </div>
 </section>
 
 <!-- ============ ADMIN ============ -->
@@ -465,6 +509,7 @@
             <option value="cyber">Cyber</option>
             <option value="ai">AI</option>
             <option value="both">Both</option>
+            <option value="releases">Releases</option>
           </select>
         </div>
         <div>
@@ -734,7 +779,7 @@ function renderSourcesTable(sources) {
   wrap.innerHTML = `<table class="sources">
     <thead><tr><th>Name</th><th>Label</th><th>Type</th><th>Domain</th><th>Weight</th><th>Enabled</th><th>Actions</th></tr></thead>
     <tbody>${sources.map(s => `<tr class="${s.enabled ? "" : "src-disabled"}">
-      <td><code>${escapeHtml(s.name)}</code></td>
+      <td>${s.product_url ? `<a href="${safeUrl(s.product_url)}" target="_blank" rel="noopener"><code>${escapeHtml(s.name)}</code></a>` : `<code>${escapeHtml(s.name)}</code>`}</td>
       <td>${escapeHtml(s.label || s.name)}</td>
       <td>${escapeHtml(s.type || "")}</td>
       <td>${escapeHtml(s.domain || "")}</td>
@@ -871,14 +916,65 @@ function renderFeedsGrid(sources) {
     grid.innerHTML = "<p style='color:var(--muted);font-size:13px'>No sources available.</p>";
     return;
   }
-  grid.innerHTML = sources.map(s => `
+
+  const domainOrder = ["cyber", "ai", "both", "releases"];
+  const domainLabels = {
+    cyber: "Cybersecurity Feeds",
+    ai: "AI Feeds",
+    both: "Cyber + AI Feeds",
+    releases: "Product Releases",
+  };
+  const domainDesc = {
+    releases: "Track new versions, security patches, and end-of-life notices for your internal tools.",
+  };
+
+  // Group sources by domain, preserving order within each group
+  const groups = {};
+  for (const d of domainOrder) groups[d] = [];
+  for (const s of sources) {
+    const d = s.domain || "cyber";
+    if (!groups[d]) groups[d] = [];
+    groups[d].push(s);
+  }
+
+  const feedCard = s => {
+    const isRelease = s.domain === "releases";
+    const productLink = isRelease && s.product_url
+      ? `<a href="${safeUrl(s.product_url)}" target="_blank" rel="noopener" class="feed-product-link" onclick="event.stopPropagation()">Release notes ↗</a>`
+      : "";
+    return `
     <label class="feed-item ${s.selected ? "feed-selected" : ""}">
       <input type="checkbox" data-name="${escapeHtml(s.name)}" ${s.selected ? "checked" : ""} />
       <div class="feed-info">
         <div class="feed-name">${escapeHtml(s.label || s.name)}</div>
-        <div class="feed-meta">${escapeHtml(s.type || "rss")} · ${escapeHtml(s.domain || "")}</div>
+        <div class="feed-meta">${escapeHtml(s.type || "rss")} · <span class="badge dom-${escapeHtml(s.domain || "cyber")}">${escapeHtml(s.domain || "")}</span>${productLink ? " · " + productLink : ""}</div>
       </div>
-    </label>`).join("");
+    </label>`;
+  };
+
+  let html = "";
+  for (const d of domainOrder) {
+    const group = groups[d];
+    if (!group || !group.length) continue;
+    html += `<div class="feeds-group">
+      <div class="feeds-group-header">
+        <span class="feeds-group-title">${domainLabels[d] || d}</span>
+        <span class="feeds-group-count">${group.length} source${group.length !== 1 ? "s" : ""}</span>
+      </div>
+      ${domainDesc[d] ? `<p class="feeds-group-desc">${domainDesc[d]}</p>` : ""}
+      <div class="feeds-grid">${group.map(feedCard).join("")}</div>
+    </div>`;
+  }
+  // Any domain not in domainOrder
+  for (const [d, group] of Object.entries(groups)) {
+    if (domainOrder.includes(d) || !group.length) continue;
+    html += `<div class="feeds-group">
+      <div class="feeds-group-header"><span class="feeds-group-title">${d}</span></div>
+      <div class="feeds-grid">${group.map(feedCard).join("")}</div>
+    </div>`;
+  }
+
+  grid.innerHTML = html;
 
   grid.querySelectorAll("input[type=checkbox]").forEach(cb => {
     cb.addEventListener("change", () => {
@@ -921,6 +1017,78 @@ document.getElementById("feedsSave").addEventListener("click", async () => {
     msgEl.className = "admin-msg err";
   }
 });
+
+/* ===== ADD FEED ===== */
+(function () {
+  let _validated = false;
+
+  function setStatus(msg, cls) {
+    const el = document.getElementById("addFeedStatus");
+    el.textContent = msg;
+    el.className = cls || "";
+  }
+
+  function resetValidation() {
+    _validated = false;
+    document.getElementById("addFeedSubmitBtn").disabled = true;
+    setStatus("", "");
+  }
+
+  document.getElementById("addFeedUrl").addEventListener("input", resetValidation);
+
+  document.getElementById("addFeedValidateBtn").addEventListener("click", async () => {
+    const url = document.getElementById("addFeedUrl").value.trim();
+    const domain = document.getElementById("addFeedDomain").value;
+    if (!url) { setStatus("Enter a feed URL first.", "err"); return; }
+    resetValidation();
+    setStatus("Checking feed…", "info");
+    try {
+      const r = await fetch("/user/feeds/validate", {
+        method: "POST",
+        headers: {"Content-Type": "application/json"},
+        body: JSON.stringify({url, domain}),
+      });
+      const data = await r.json();
+      if (!r.ok || !data.ok) {
+        setStatus("Invalid feed: " + (data.detail || data.error || "Unknown error"), "err");
+        return;
+      }
+      _validated = true;
+      document.getElementById("addFeedSubmitBtn").disabled = false;
+      const label = data.title ? `"${data.title}"` : "feed";
+      setStatus(`✓ Valid — ${label}, ${data.item_count} item${data.item_count !== 1 ? "s" : ""} found. Click Add feed to save.`, "ok");
+    } catch (e) {
+      setStatus("Check failed: " + e.message, "err");
+    }
+  });
+
+  document.getElementById("addFeedSubmitBtn").addEventListener("click", async () => {
+    if (!_validated) return;
+    const url = document.getElementById("addFeedUrl").value.trim();
+    const domain = document.getElementById("addFeedDomain").value;
+    const label = document.getElementById("addFeedLabel").value.trim();
+    setStatus("Saving…", "info");
+    try {
+      const r = await fetch("/user/feeds", {
+        method: "POST",
+        headers: {"Content-Type": "application/json"},
+        body: JSON.stringify({url, domain, label}),
+      });
+      const data = await r.json();
+      if (!r.ok) {
+        setStatus("Error: " + (data.detail || "Failed to save."), "err");
+        return;
+      }
+      setStatus(`✓ Feed "${data.label}" added successfully.`, "ok");
+      document.getElementById("addFeedUrl").value = "";
+      document.getElementById("addFeedLabel").value = "";
+      resetValidation();
+      loadMyFeeds(); // refresh the grid so the new feed appears
+    } catch (e) {
+      setStatus("Error: " + e.message, "err");
+    }
+  });
+})();
 
 document.getElementById("changePwBtn").addEventListener("click", async () => {
   const cur = document.getElementById("curPw").value;
@@ -1101,8 +1269,8 @@ function renderCategorySidebar(topCategories) {
     if (!groups[domain]) groups[domain] = [];
     groups[domain].push({key, label, count});
   }
-  const domainOrder = ["cyber", "ai", "intersection", "other"];
-  const domainLabels = {cyber:"Cyber", ai:"AI", intersection:"AI × Cyber", other:"Other"};
+  const domainOrder = ["cyber", "ai", "releases", "intersection", "other"];
+  const domainLabels = {cyber:"Cyber", ai:"AI", releases:"Releases", intersection:"AI × Cyber", other:"Other"};
   let html = "";
   for (const domain of domainOrder) {
     if (!groups[domain]) continue;

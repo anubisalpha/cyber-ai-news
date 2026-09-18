@@ -110,7 +110,9 @@ app = FastAPI(
 app.add_middleware(_SessionAuthMiddleware)
 
 from .admin import router as admin_router  # noqa: E402
+from .user_feeds import router as user_feeds_router  # noqa: E402
 app.include_router(admin_router)
+app.include_router(user_feeds_router)
 
 # In-memory refresh status (single-process; fine for the dashboard).
 _refresh_state: dict = {"running": False, "last_finished": None, "last_error": None}
@@ -232,7 +234,7 @@ def _user_source_list(request: Request) -> "list[str] | None":
 @app.get("/api/articles")
 def get_articles(
     request: Request,
-    domain: Optional[str] = Query(None, pattern="^(cyber|ai)$"),
+    domain: Optional[str] = Query(None, pattern="^(cyber|ai|both|releases)$"),
     category: Optional[str] = None,
     severity: Optional[str] = Query(None, pattern="^(critical|high|medium|low)$"),
     region: Optional[str] = Query(None, pattern="^(us|eu|uk|apac)$"),
@@ -326,7 +328,7 @@ def post_refresh(background: BackgroundTasks):
 def rss_feed(
     request: Request,
     watchlist: Optional[str] = None,
-    domain: Optional[str] = Query(None, pattern="^(cyber|ai)$"),
+    domain: Optional[str] = Query(None, pattern="^(cyber|ai|both|releases)$"),
     category: Optional[str] = None,
     severity: Optional[str] = Query(None, pattern="^(critical|high|medium|low)$"),
     region: Optional[str] = Query(None, pattern="^(us|eu|uk|apac)$"),

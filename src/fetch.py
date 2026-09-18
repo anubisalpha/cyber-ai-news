@@ -99,6 +99,27 @@ def _parse_cisa_kev(data: dict, source: dict, fcfg: dict) -> list[Article]:
     return out
 
 
+def validate_feed_url(url: str, settings: dict) -> dict:
+    """Attempt to parse a URL as RSS/Atom. Returns ok/title/item_count or ok/error."""
+    try:
+        fcfg = settings.get("fetch", {})
+        parsed = feedparser.parse(
+            url,
+            request_headers={"User-Agent": fcfg.get("user_agent", "cyber-ai-news")},
+        )
+        # bozo flag means the parser hit an error; reject if there are also no entries
+        if parsed.get("bozo") and not parsed.entries:
+            exc = parsed.get("bozo_exception")
+            return {"ok": False, "error": f"Not a valid RSS/Atom feed: {exc}"}
+        return {
+            "ok": True,
+            "title": (parsed.feed.get("title") or "").strip(),
+            "item_count": len(parsed.entries),
+        }
+    except Exception as e:
+        return {"ok": False, "error": str(e)}
+
+
 def _kev_date(d: str | None) -> str | None:
     if not d:
         return None

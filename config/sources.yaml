@@ -2,12 +2,13 @@
 # Source list for the cyber + AI news service.
 #
 # Each source has:
-#   name      : human-readable label
-#   type      : "rss" | "json_api"
-#   url       : feed / endpoint URL
-#   domain    : "cyber" | "ai" | "both"   (default tag applied to every item)
-#   enabled   : true/false  (toggle a source without deleting it)
-#   weight    : optional 1-5 trust/priority hint (used for ranking later)
+#   name        : human-readable label
+#   type        : "rss" | "json_api"
+#   url         : feed / endpoint URL
+#   domain      : "cyber" | "ai" | "both" | "releases"
+#   enabled     : true/false  (toggle a source without deleting it)
+#   weight      : optional 1-5 trust/priority hint (used for ranking later)
+#   product_url : (releases domain only) human-readable release notes / changelog page
 #
 # Add or remove entries freely — nothing else in the code is hard-coded to a
 # specific feed. Just keep the keys above.
@@ -157,3 +158,108 @@ sources:
     domain: ai
     enabled: true
     weight: 2
+
+  # ---------------------------------------------------------------------------
+  # Product releases — internal stack
+  # ---------------------------------------------------------------------------
+
+  # Infrastructure / virtualisation
+  - name: Proxmox VE Releases
+    type: rss
+    url: https://github.com/proxmox/pve-manager/releases.atom
+    domain: releases
+    enabled: true
+    weight: 4
+    product_url: https://pve.proxmox.com/wiki/Roadmap
+
+  - name: pfSense CE Releases
+    type: rss
+    url: https://github.com/pfsense/pfsense/releases.atom
+    domain: releases
+    enabled: true
+    weight: 4
+    product_url: https://www.netgate.com/blog/category/releases
+
+  - name: Ubuntu Announcements
+    type: rss
+    url: https://ubuntu.com/blog/feed
+    domain: releases
+    enabled: true
+    weight: 3
+    product_url: https://ubuntu.com/about/release-cycle
+
+  - name: Docker Engine Releases
+    type: rss
+    url: https://github.com/moby/moby/releases.atom
+    domain: releases
+    enabled: true
+    weight: 3
+    product_url: https://docs.docker.com/engine/release-notes/
+
+  # Monitoring & security platforms
+  - name: Zabbix News
+    type: rss
+    url: https://www.zabbix.com/rss.php
+    domain: releases
+    enabled: true
+    weight: 4
+    product_url: https://www.zabbix.com/whats_new
+
+  - name: Wazuh Releases
+    type: rss
+    url: https://github.com/wazuh/wazuh/releases.atom
+    domain: releases
+    enabled: true
+    weight: 4
+    product_url: https://documentation.wazuh.com/current/release-notes/
+
+  - name: GLPi Releases
+    type: rss
+    url: https://github.com/glpi-project/glpi/releases.atom
+    domain: releases
+    enabled: true
+    weight: 3
+    product_url: https://github.com/glpi-project/glpi/releases
+
+  # Applications
+  - name: GitLab Releases
+    type: rss
+    url: https://about.gitlab.com/blog/categories/releases/feed.xml
+    domain: releases
+    enabled: true
+    weight: 4
+    product_url: https://about.gitlab.com/releases/
+
+  - name: DokuWiki Releases
+    type: rss
+    url: https://github.com/dokuwiki/dokuwiki/releases.atom
+    domain: releases
+    enabled: true
+    weight: 3
+    product_url: https://www.dokuwiki.org/changes
+
+  - name: Eramba Releases
+    type: rss
+    url: https://github.com/eramba/eramba/releases.atom
+    domain: releases
+    enabled: false          # private repo — no public releases feed
+    weight: 3
+    product_url: https://eramba.org/
+
+  # Developer tooling
+  - name: JetBrains Blog
+    type: rss
+    url: https://blog.jetbrains.com/feed/
+    domain: releases
+    enabled: true
+    weight: 2
+    product_url: https://www.jetbrains.com/phpstorm/whatsnew/
+
+  # Cloud platform
+  - name: AWS What's New
+    type: rss
+    url: https://aws.amazon.com/new/feed/
+    domain: releases
+    enabled: true
+    weight: 3
+    product_url: https://aws.amazon.com/new/

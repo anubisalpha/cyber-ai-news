@@ -128,7 +128,23 @@ categories:
       keywords: [open source, open-source, oss, weights released, apache 2.0,
                  mit license, community model]
 
-  # ---- Cyber x AI intersection (your niche) -------------------------------
+  # ---- Product releases (internal stack) ---------------------------------
+  releases:
+    new_release:
+      label: New Release
+      keywords: [released, release notes, version, changelog, new version,
+                 general availability, stable release, now available, what's new,
+                 whats new, upgrade, release candidate, rc1, rc2, beta]
+    security_patch:
+      label: Security Patch
+      keywords: [security fix, security patch, vulnerability fixed, cve fixed,
+                 security release, security update, hotfix, critical fix]
+    eol:
+      label: End of Life
+      keywords: [end of life, eol, end of support, deprecated, no longer supported,
+                 sunset, discontinue, end of maintenance, long-term support, lts]
+
+  # ---- Cyber x AI intersection (your niche) ---------------------------------
   intersection:
     ai_security:
       label: AI x Cyber (intersection)
