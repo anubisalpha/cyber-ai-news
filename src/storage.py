@@ -499,12 +499,13 @@ class Storage:
     def create_source(self, data: dict, created_by: str) -> None:
         now = datetime.now(timezone.utc).isoformat()
         self.conn.execute(
-            """INSERT INTO sources (name,label,url,type,enabled,domain,weight,tags,created_at,updated_at,created_by)
-               VALUES (?,?,?,?,?,?,?,?,?,?,?)""",
+            """INSERT INTO sources (name,label,url,type,enabled,domain,weight,tags,product_url,created_at,updated_at,created_by)
+               VALUES (?,?,?,?,?,?,?,?,?,?,?,?)""",
             (data["name"], data.get("label", data["name"]), data.get("url", ""),
              data.get("type", "rss"), 1 if data.get("enabled", True) else 0,
              data.get("domain", "both"), data.get("weight", 50),
-             json.dumps(data.get("tags", [])), now, now, created_by),
+             json.dumps(data.get("tags", [])), data.get("product_url"),
+             now, now, created_by),
         )
         self._log_source_change(data["name"], "add", created_by, data)
         self.conn.commit()
@@ -514,7 +515,7 @@ class Storage:
         if not existing:
             return False
         now = datetime.now(timezone.utc).isoformat()
-        allowed = {"label", "url", "type", "enabled", "domain", "weight", "tags"}
+        allowed = {"label", "url", "type", "enabled", "domain", "weight", "tags", "product_url"}
         sets, vals = [], []
         for k, v in changes.items():
             if k in allowed:
